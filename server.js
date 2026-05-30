@@ -7,6 +7,7 @@ const http    = require('http');
 const db      = require('./db');
 const bot     = require('./bot');
 const cmd     = require('./commands');
+const asaas   = require('./asaas');
 
 const app        = express();
 const PORT       = process.env.PORT || 8080;
@@ -204,6 +205,101 @@ app.patch('/api/prediction/:id', autenticado, async (req, res) => {
   if (status === 'RESOLVED') body.winning_outcome_id = predicaoOutcomes.get(twitch_id)?.[winningOutcomeIndex];
   await cmd.twitchAPI('PATCH', '/predictions', body, access_token, CLIENT_ID);
   res.json({ ok: true });
+});
+
+// ── Premium — Checkout ────────────────────────────────────────────────────────
+
+app.get('/premium', autenticado, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'premium.html'));
+});
+
+app.post('/api/premium/checkout', autenticado, async (req, res) => {
+  const { nome, cpf } = req.body;
+  const { twitch_id, login, display_name } = req.session.streamer;
+
+  if (!nome || !cpf) return res.json({ ok: false, erro: 'Nome e CPF são obrigatórios.' });
+
+  try {
+    // Verifica se já é premium
+    if (await db.isPremium(twitch_id)) {
+      return res.json({ ok: false, erro: 'Você já possui Premium ativo!' });
+    }
+
+    // Recupera ou cria cliente no Asaas
+    const streamer   = await db.getStreamer(twitch_id);
+    let clienteId    = streamer.asaas_customer_id;
+
+    if (!clienteId) {
+      const cliente = await asaas.upsertCliente({ nome, cpf, email: null });
+      if (cliente.errors) return res.json({ ok: false, erro: cliente.errors[0]?.description || 'Erro ao criar cliente.' });
+      clienteId = cliente.id;
+      await db.salvarAsaasCliente(twitch_id, clienteId);
+    }
+
+    // Cria cobrança PIX
+    const cobranca = await asaas.criarCobrancaPix({
+      clienteId,
+      twitchId:    twitch_id,
+      twitchLogin: login,
+      valor:       process.env.PREMIUM_PRECO || '9.00',
+    });
+
+    if (cobranca.errors || !cobranca.id) {
+      return res.json({ ok: false, erro: cobranca.errors?.[0]?.description || 'Erro ao criar cobrança.' });
+    }
+
+    // Busca QR code
+    const pix = await asaas.getPixQrCode(cobranca.id);
+
+    res.json({
+      ok: true,
+      paymentId:   cobranca.id,
+      qrCode:      pix.encodedImage,   // base64 da imagem
+      copyCola:    pix.payload,         // texto para copiar
+      valor:       cobranca.value,
+      vencimento:  cobranca.dueDate,
+    });
+  } catch (e) {
+    console.error('[premium/checkout]', e);
+    res.json({ ok: false, erro: 'Erro interno. Tente novamente.' });
+  }
+});
+
+// Verifica status do pagamento (polling do frontend)
+app.get('/api/premium/status/:paymentId', autenticado, async (req, res) => {
+  const payment = await asaas.getPayment(req.params.paymentId);
+  const pago    = ['CONFIRMED', 'RECEIVED'].includes(payment.status);
+  res.json({ pago, status: payment.status });
+});
+
+// ── Webhook Asaas ─────────────────────────────────────────────────────────────
+
+app.post('/webhooks/asaas', express.json(), async (req, res) => {
+  const token = req.headers['asaas-access-token'];
+  if (!asaas.verificarWebhook(token)) {
+    return res.status(401).json({ erro: 'Token inválido' });
+  }
+
+  const { event, payment } = req.body;
+
+  if (['PAYMENT_CONFIRMED', 'PAYMENT_RECEIVED'].includes(event) && payment?.externalReference) {
+    const twitchId = payment.externalReference;
+    await db.ativarPremium(twitchId, 1);
+    console.log(`[Premium] Ativado para twitch_id: ${twitchId} via webhook Asaas`);
+  }
+
+  res.json({ ok: true });
+});
+
+// ── API — status premium do usuário logado ────────────────────────────────────
+
+app.get('/api/me/premium', autenticado, async (req, res) => {
+  const streamer = await db.getStreamer(req.session.streamer.twitch_id);
+  const ativo    = await db.isPremium(streamer.twitch_id);
+  res.json({
+    premium: ativo,
+    expires: streamer.premium_expires_at,
+  });
 });
 
 // ── Health check + self-ping ──────────────────────────────────────────────────

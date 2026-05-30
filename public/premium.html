@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Ativar Premium — ExplorarLocais Bot</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    :root{--purple:#9147ff;--dark:#0e0e10;--card:#18181b;--card2:#1f1f23;--border:#2a2a2d;--text:#efeff1;--muted:#adadb8;--green:#43b581;--red:#f04747}
+    body{font-family:'Segoe UI',sans-serif;background:var(--dark);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+
+    .box{background:var(--card);border-radius:14px;padding:32px;width:100%;max-width:460px;border:1px solid var(--border)}
+    .logo{text-align:center;font-size:22px;font-weight:800;color:var(--purple);margin-bottom:4px}
+    .subtitle{text-align:center;color:var(--muted);font-size:13px;margin-bottom:24px}
+
+    .preco{text-align:center;margin-bottom:24px}
+    .preco .val{font-size:48px;font-weight:900;color:var(--purple)}
+    .preco .per{font-size:14px;color:var(--muted)}
+    .beneficios{list-style:none;margin-bottom:24px;display:flex;flex-direction:column;gap:8px}
+    .beneficios li{font-size:13px;color:var(--muted);display:flex;gap:8px}
+    .beneficios li::before{content:'✓';color:var(--green);font-weight:800}
+
+    .divider{height:1px;background:var(--border);margin:20px 0}
+
+    .form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+    label{font-size:12px;color:var(--muted)}
+    input{background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:10px 14px;font-size:14px;outline:none;transition:.2s;width:100%}
+    input:focus{border-color:var(--purple)}
+
+    .btn{background:var(--purple);color:#fff;border:none;border-radius:8px;padding:14px;font-size:15px;font-weight:800;cursor:pointer;width:100%;transition:.2s}
+    .btn:hover{background:#772ce8}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+
+    /* PIX display */
+    #pix-section{display:none;text-align:center}
+    #pix-section .qr{width:200px;height:200px;border-radius:8px;border:3px solid var(--purple);margin:0 auto 16px}
+    .copycola{background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:11px;font-family:monospace;word-break:break-all;cursor:pointer;color:var(--muted);transition:.2s;text-align:left}
+    .copycola:hover{border-color:var(--purple);color:var(--text)}
+    .status-badge{display:inline-flex;align-items:center;gap:8px;padding:8px 20px;border-radius:20px;font-size:13px;font-weight:700;margin-top:16px}
+    .status-badge.aguardando{background:#1a0a2e;color:var(--purple)}
+    .status-badge.pago{background:#0a2e1a;color:var(--green)}
+    .pulse{width:8px;height:8px;border-radius:50%;background:currentColor;animation:pulse 1.5s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+    .back{display:block;text-align:center;color:var(--muted);font-size:13px;margin-top:16px;text-decoration:none}
+    .back:hover{color:var(--text)}
+    .erro{color:var(--red);font-size:13px;margin-top:8px;text-align:center}
+  </style>
+</head>
+<body>
+
+<div class="box">
+  <div class="logo">🚀 Premium</div>
+  <div class="subtitle">ExplorarLocais Bot</div>
+
+  <div class="preco">
+    <div class="val">R$ 9</div>
+    <div class="per">por mês</div>
+  </div>
+
+  <ul class="beneficios">
+    <li>Comandos customizados ilimitados</li>
+    <li>Enquetes com pontos do canal</li>
+    <li>Predições</li>
+    <li>Cooldown individual por comando</li>
+    <li>Suporte prioritário</li>
+  </ul>
+
+  <!-- Formulário -->
+  <div id="form-section">
+    <div class="divider"></div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:16px">Para gerar o PIX precisamos dos seus dados:</p>
+
+    <div class="form-group">
+      <label>Seu nome completo</label>
+      <input type="text" id="nome" placeholder="João da Silva">
+    </div>
+    <div class="form-group">
+      <label>CPF</label>
+      <input type="text" id="cpf" placeholder="000.000.000-00" maxlength="14">
+    </div>
+
+    <button class="btn" id="btnGerar" onclick="gerarPix()">Gerar PIX — R$ 9,00</button>
+    <p class="erro" id="erro"></p>
+  </div>
+
+  <!-- PIX gerado -->
+  <div id="pix-section">
+    <div class="divider"></div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Escaneie o QR Code ou copie o código abaixo:</p>
+    <img class="qr" id="qr-img" src="" alt="QR Code PIX">
+    <div class="copycola" id="copycola" onclick="copiarCodigo()" title="Clique para copiar"></div>
+    <div>
+      <div class="status-badge aguardando" id="status-badge">
+        <div class="pulse"></div>
+        Aguardando pagamento...
+      </div>
+    </div>
+    <p style="font-size:11px;color:var(--muted);margin-top:12px">O Premium é ativado automaticamente após a confirmação do PIX.</p>
+  </div>
+
+  <a href="/painel" class="back">← Voltar ao painel</a>
+</div>
+
+<script>
+  let pollTimer  = null;
+  let paymentId  = null;
+
+  // Máscara CPF
+  document.getElementById('cpf').addEventListener('input', function() {
+    let v = this.value.replace(/\D/g,'');
+    if (v.length > 11) v = v.slice(0,11);
+    v = v.replace(/(\d{3})(\d)/,'$1.$2')
+         .replace(/(\d{3})(\d)/,'$1.$2')
+         .replace(/(\d{3})(\d{1,2})$/,'$1-$2');
+    this.value = v;
+  });
+
+  async function gerarPix() {
+    const nome = document.getElementById('nome').value.trim();
+    const cpf  = document.getElementById('cpf').value.trim();
+    const erro = document.getElementById('erro');
+    erro.textContent = '';
+
+    if (!nome) { erro.textContent = 'Informe seu nome.'; return; }
+    if (cpf.replace(/\D/g,'').length !== 11) { erro.textContent = 'CPF inválido.'; return; }
+
+    const btn = document.getElementById('btnGerar');
+    btn.disabled = true;
+    btn.textContent = 'Gerando PIX...';
+
+    const res  = await fetch('/api/premium/checkout', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ nome, cpf }),
+    });
+    const data = await res.json();
+
+    btn.disabled   = false;
+    btn.textContent = 'Gerar PIX — R$ 9,00';
+
+    if (!data.ok) { erro.textContent = data.erro || 'Erro ao gerar PIX.'; return; }
+
+    paymentId = data.paymentId;
+    document.getElementById('qr-img').src     = `data:image/png;base64,${data.qrCode}`;
+    document.getElementById('copycola').textContent = data.copyCola;
+    document.getElementById('form-section').style.display = 'none';
+    document.getElementById('pix-section').style.display  = 'block';
+
+    iniciarPolling();
+  }
+
+  function iniciarPolling() {
+    pollTimer = setInterval(async () => {
+      const res  = await fetch(`/api/premium/status/${paymentId}`);
+      const data = await res.json();
+      if (data.pago) {
+        clearInterval(pollTimer);
+        const badge = document.getElementById('status-badge');
+        badge.className = 'status-badge pago';
+        badge.innerHTML = '<div class="pulse"></div> ✅ Premium ativado!';
+        setTimeout(() => window.location.href = '/painel?premium=1', 2000);
+      }
+    }, 5000); // verifica a cada 5 segundos
+  }
+
+  function copiarCodigo() {
+    const el = document.getElementById('copycola');
+    navigator.clipboard.writeText(el.textContent).then(() => {
+      const orig = el.textContent;
+      el.textContent = '✅ Copiado!';
+      setTimeout(() => el.textContent = orig, 2000);
+    });
+  }
+</script>
+</body>
+</html>

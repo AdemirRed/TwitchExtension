@@ -20,10 +20,17 @@ async function init() {
       display_name VARCHAR(100),
       access_token TEXT,
       refresh_token TEXT,
-      active       BOOLEAN      DEFAULT true,
-      created_at   TIMESTAMP    DEFAULT NOW()
+      active            BOOLEAN      DEFAULT true,
+      premium           BOOLEAN      DEFAULT false,
+      premium_expires_at TIMESTAMP   DEFAULT NULL,
+      asaas_customer_id VARCHAR(100) DEFAULT NULL,
+      created_at        TIMESTAMP    DEFAULT NOW()
     )
   `);
+  // Adiciona colunas premium se já existir a tabela (migração segura)
+  await q(`ALTER TABLE streamers ADD COLUMN IF NOT EXISTS premium BOOLEAN DEFAULT false`).catch(()=>{});
+  await q(`ALTER TABLE streamers ADD COLUMN IF NOT EXISTS premium_expires_at TIMESTAMP DEFAULT NULL`).catch(()=>{});
+  await q(`ALTER TABLE streamers ADD COLUMN IF NOT EXISTS asaas_customer_id VARCHAR(100) DEFAULT NULL`).catch(()=>{});
   await q(`
     CREATE TABLE IF NOT EXISTS channel_settings (
       twitch_id  VARCHAR(50) PRIMARY KEY REFERENCES streamers(twitch_id) ON DELETE CASCADE,
@@ -105,6 +112,31 @@ async function getRecentLog(twitch_id, limit = 100) {
   return r.rows.reverse();
 }
 
+async function ativarPremium(twitch_id, meses = 1) {
+  // Se já tem premium ativo, soma mais 1 mês; senão começa do hoje
+  const atual = await getStreamer(twitch_id);
+  const base  = atual?.premium_expires_at && new Date(atual.premium_expires_at) > new Date()
+    ? new Date(atual.premium_expires_at)
+    : new Date();
+  base.setMonth(base.getMonth() + meses);
+  await q(
+    `UPDATE streamers SET premium=true, premium_expires_at=$2 WHERE twitch_id=$1`,
+    [twitch_id, base]
+  );
+}
+
+async function salvarAsaasCliente(twitch_id, asaas_customer_id) {
+  await q(`UPDATE streamers SET asaas_customer_id=$2 WHERE twitch_id=$1`, [twitch_id, asaas_customer_id]);
+}
+
+async function isPremium(twitch_id) {
+  const r = await q(`SELECT premium, premium_expires_at FROM streamers WHERE twitch_id=$1`, [twitch_id]);
+  const s = r.rows[0];
+  if (!s?.premium) return false;
+  if (!s.premium_expires_at) return true;
+  return new Date(s.premium_expires_at) > new Date();
+}
+
 async function ping() {
   await q('SELECT 1');
 }
@@ -112,5 +144,7 @@ async function ping() {
 module.exports = {
   init, upsertStreamer, getStreamer, getActiveStreamers,
   deactivateStreamer, getSettings, saveSettings,
-  logCommand, getRecentLog, ping,
+  logCommand, getRecentLog,
+  ativarPremium, salvarAsaasCliente, isPremium,
+  ping,
 };
