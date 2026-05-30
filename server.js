@@ -1,0 +1,230 @@
+require('dotenv').config();
+const express = require('express');
+const session = require('express-session');
+const fetch   = require('node-fetch');
+const path    = require('path');
+const http    = require('http');
+const db      = require('./db');
+const bot     = require('./bot');
+const cmd     = require('./commands');
+
+const app        = express();
+const PORT       = process.env.PORT || 8080;
+const BASE_URL   = process.env.BASE_URL || `http://localhost:${PORT}`;
+const CLIENT_ID  = process.env.TWITCH_CLIENT_ID;
+const CLIENT_SEC = process.env.TWITCH_CLIENT_SECRET;
+const REDIRECT   = `${BASE_URL}/auth/callback`;
+
+const SCOPES = [
+  'chat:read','chat:edit',
+  'moderator:manage:banned_users','moderator:read:chatters',
+  'channel:manage:broadcast','clips:edit','user:read:broadcast',
+  'moderator:manage:shoutouts','channel:manage:polls',
+  'channel:read:polls','channel:manage:predictions','channel:read:predictions',
+].join(' ');
+
+// ── Middleware ────────────────────────────────────────────────────────────────
+
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+app.use('/admin-assets', express.static(path.join(__dirname, 'admin')));
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'dev-secret-troque-em-producao',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: BASE_URL.startsWith('https'), maxAge: 7 * 24 * 60 * 60 * 1000 },
+}));
+
+function autenticado(req, res, next) {
+  if (req.session?.streamer) return next();
+  res.redirect('/?erro=login');
+}
+
+// ── Rotas públicas ────────────────────────────────────────────────────────────
+
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+
+app.get('/entrar', (req, res) => {
+  const url = `https://id.twitch.tv/oauth2/authorize?client_id=${CLIENT_ID}`
+    + `&redirect_uri=${encodeURIComponent(REDIRECT)}`
+    + `&response_type=code&scope=${encodeURIComponent(SCOPES)}&force_verify=true`;
+  res.redirect(url);
+});
+
+app.get('/auth/callback', async (req, res) => {
+  const { code, error } = req.query;
+  if (error || !code) return res.redirect('/?erro=cancelado');
+
+  try {
+    // Troca código por token
+    const tokenRes = await fetch('https://id.twitch.tv/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: CLIENT_ID, client_secret: CLIENT_SEC,
+        code, grant_type: 'authorization_code', redirect_uri: REDIRECT,
+      }),
+    });
+    const tokenData = await tokenRes.json();
+    if (!tokenData.access_token) return res.redirect('/?erro=token');
+
+    // Busca dados do usuário
+    const userRes = await fetch('https://api.twitch.tv/helix/users', {
+      headers: { 'Client-Id': CLIENT_ID, 'Authorization': `Bearer ${tokenData.access_token}` },
+    });
+    const userData = await userRes.json();
+    const user = userData.data?.[0];
+    if (!user) return res.redirect('/?erro=usuario');
+
+    // Salva no banco e entra no canal
+    await db.upsertStreamer({
+      twitch_id:     user.id,
+      login:         user.login,
+      display_name:  user.display_name,
+      access_token:  tokenData.access_token,
+      refresh_token: tokenData.refresh_token || null,
+    });
+
+    await bot.joinChannel(user.login);
+
+    req.session.streamer = { twitch_id: user.id, login: user.login, display_name: user.display_name };
+    res.redirect('/painel');
+  } catch (e) {
+    console.error('[auth/callback]', e);
+    res.redirect('/?erro=interno');
+  }
+});
+
+app.get('/sair', (req, res) => {
+  req.session.destroy();
+  res.redirect('/');
+});
+
+app.get('/desconectar', autenticado, async (req, res) => {
+  const { twitch_id, login } = req.session.streamer;
+  await db.deactivateStreamer(twitch_id);
+  await bot.partChannel(login);
+  req.session.destroy();
+  res.redirect('/?desconectado=1');
+});
+
+// ── Painel admin ──────────────────────────────────────────────────────────────
+
+app.get('/painel', autenticado, (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin', 'index.html'));
+});
+
+// ── API (requer autenticação) ─────────────────────────────────────────────────
+
+app.get('/api/me', autenticado, (req, res) => res.json(req.session.streamer));
+
+app.get('/api/settings', autenticado, async (req, res) => {
+  const s = await db.getSettings(req.session.streamer.twitch_id);
+  res.json(s);
+});
+
+app.post('/api/settings', autenticado, async (req, res) => {
+  await db.saveSettings(req.session.streamer.twitch_id, req.body);
+  bot.invalidateCache(req.session.streamer.twitch_id);
+  res.json({ ok: true });
+});
+
+app.get('/api/log', autenticado, async (req, res) => {
+  const { twitch_id } = req.session.streamer;
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  const historico = await db.getRecentLog(twitch_id, 100);
+  historico.forEach(row => {
+    const entry = { ts: new Date(row.created_at).getTime(), tipo: row.tipo, texto: row.msg };
+    res.write(`data: ${JSON.stringify(entry)}\n\n`);
+  });
+
+  bot.addLogListener(twitch_id, res);
+  req.on('close', () => bot.removeLogListener(twitch_id, res));
+});
+
+app.post('/api/test-cmd', autenticado, (req, res) => {
+  const { login } = req.session.streamer;
+  const fakeTags = { 'display-name': 'AdminTest', mod: true, badges: { broadcaster: '1' }, subscriber: true };
+  // Emite via tmi diretamente
+  require('./bot'); // já importado
+  res.json({ ok: true, nota: 'Use o chat diretamente para testar comandos' });
+});
+
+// ── API Polls ─────────────────────────────────────────────────────────────────
+
+app.post('/api/poll', autenticado, async (req, res) => {
+  const { twitch_id, access_token } = await db.getStreamer(req.session.streamer.twitch_id);
+  const { titulo, opcoes, duracao, usaPontos, pontos } = req.body;
+  const body = {
+    broadcaster_id: twitch_id, title: titulo,
+    choices: opcoes.map(t => ({ title: t })), duration: duracao,
+  };
+  if (usaPontos) { body.channel_points_voting_enabled = true; body.channel_points_per_vote = pontos; }
+  const data = await cmd.twitchAPI('POST', '/polls', body, access_token, CLIENT_ID);
+  data.data?.[0] ? res.json({ ok: true, id: data.data[0].id }) : res.json({ ok: false, erro: JSON.stringify(data) });
+});
+
+app.get('/api/poll/:id', autenticado, async (req, res) => {
+  const { twitch_id, access_token } = await db.getStreamer(req.session.streamer.twitch_id);
+  const data = await cmd.twitchAPI('GET', `/polls?broadcaster_id=${twitch_id}&id=${req.params.id}`, null, access_token, CLIENT_ID);
+  res.json(data.data?.[0] || null);
+});
+
+app.delete('/api/poll/:id', autenticado, async (req, res) => {
+  const { twitch_id, access_token } = await db.getStreamer(req.session.streamer.twitch_id);
+  await cmd.twitchAPI('PATCH', '/polls', { broadcaster_id: twitch_id, id: req.params.id, status: 'TERMINATED' }, access_token, CLIENT_ID);
+  res.json({ ok: true });
+});
+
+// ── API Predições ─────────────────────────────────────────────────────────────
+
+const predicaoOutcomes = new Map();
+
+app.post('/api/prediction', autenticado, async (req, res) => {
+  const { twitch_id, access_token } = await db.getStreamer(req.session.streamer.twitch_id);
+  const { titulo, azul, rosa, duracao } = req.body;
+  const data = await cmd.twitchAPI('POST', '/predictions', {
+    broadcaster_id: twitch_id, title: titulo,
+    outcomes: [{ title: azul }, { title: rosa }], prediction_window: duracao,
+  }, access_token, CLIENT_ID);
+  if (data.data?.[0]) {
+    predicaoOutcomes.set(twitch_id, data.data[0].outcomes.map(o => o.id));
+    res.json({ ok: true, id: data.data[0].id });
+  } else res.json({ ok: false, erro: JSON.stringify(data) });
+});
+
+app.patch('/api/prediction/:id', autenticado, async (req, res) => {
+  const { twitch_id, access_token } = await db.getStreamer(req.session.streamer.twitch_id);
+  const { status, winningOutcomeIndex } = req.body;
+  const body = { broadcaster_id: twitch_id, id: req.params.id, status };
+  if (status === 'RESOLVED') body.winning_outcome_id = predicaoOutcomes.get(twitch_id)?.[winningOutcomeIndex];
+  await cmd.twitchAPI('PATCH', '/predictions', body, access_token, CLIENT_ID);
+  res.json({ ok: true });
+});
+
+// ── Health check + self-ping ──────────────────────────────────────────────────
+
+app.get('/ping', async (req, res) => {
+  await db.ping();
+  res.json({ ok: true, ts: Date.now(), canais: (await db.getActiveStreamers()).length });
+});
+
+// Self-ping a cada 9 minutos (mantém Railway e Supabase ativos)
+function iniciarSelfPing() {
+  setInterval(async () => {
+    try {
+      await fetch(`${BASE_URL}/ping`);
+      console.log('[ping] OK');
+    } catch (e) {
+      console.warn('[ping] falhou:', e.message);
+    }
+  }, 9 * 60 * 1000);
+}
+
+// ── Inicialização ─────────────────────────────────────────────────────────────
+
+module.exports = { app, PORT, iniciarSelfPing };

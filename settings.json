@@ -1,0 +1,93 @@
+{
+  "cooldown_ms": 10000,
+  "pix": {
+    "enabled": true,
+    "chave": "",
+    "tipo": "aleatório"
+  },
+  "social": {
+    "discord": "",
+    "instagram": "",
+    "youtube": "",
+    "twitter": ""
+  },
+  "moderation": {
+    "ban_enabled": true,
+    "timeout_enabled": true,
+    "unban_enabled": true,
+    "apenas_mods": true
+  },
+  "stream": {
+    "mude_titulo_enabled": true,
+    "mude_jogo_enabled": true,
+    "clip_enabled": true,
+    "so_enabled": true,
+    "uptime_enabled": true,
+    "apenas_mods": true
+  },
+  "commands": {
+    "!leitar": {
+      "enabled": true,
+      "emoji": "🥛",
+      "permissao": "todos",
+      "cooldown_ms": 10000,
+      "mensagens": [
+        "@{usuario} acabou de jorrar leite em @{alvo} KEKW",
+        "@{usuario} encharcou @{alvo} de leite sem dó PogChamp",
+        "@{usuario} mirou e jogou um litro de leite em @{alvo} LUL",
+        "@{usuario} abriu a torneira do leite direto em @{alvo} D:",
+        "@{usuario} leitou @{alvo} na maior cara de pau monkaS"
+      ]
+    },
+    "!hidrate": {
+      "enabled": true,
+      "emoji": "💧",
+      "permissao": "todos",
+      "cooldown_ms": 30000,
+      "mensagens": [
+        "@{usuario} lembrou a chat de beber água! 💧",
+        "Hora de hidratar! @{usuario} mandou o lembrete 💧"
+      ]
+    },
+    "!alongar": {
+      "enabled": true,
+      "emoji": "🧘",
+      "permissao": "todos",
+      "cooldown_ms": 60000,
+      "mensagens": [
+        "@{usuario} mandou todo mundo se alongar! 🧘",
+        "Pára tudo! @{usuario} decretou hora do alongamento 🧘"
+      ]
+    },
+    "!skill": {
+      "enabled": true,
+      "emoji": "💀",
+      "permissao": "todos",
+      "cooldown_ms": 5000,
+      "mensagens": [
+        "@{usuario} culpou a skill pelo resultado 💀",
+        "A culpa é da skill! @{usuario} confirmou 💀"
+      ]
+    },
+    "!hype": {
+      "enabled": true,
+      "emoji": "🔥",
+      "permissao": "todos",
+      "cooldown_ms": 10000,
+      "mensagens": [
+        "@{usuario} jogou HYPE na chat! 🔥🔥🔥",
+        "HYPE! @{usuario} acendeu a galera 🔥"
+      ]
+    },
+    "!lurk": {
+      "enabled": true,
+      "emoji": "👻",
+      "permissao": "todos",
+      "cooldown_ms": 0,
+      "mensagens": [
+        "@{usuario} entrou em modo lurk 👻 até mais!",
+        "@{usuario} sumiu no lurk... mas a gente sabe que tá aí 👻"
+      ]
+    }
+  }
+}

@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Bot Admin</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0e0e10;--card:#18181b;--card2:#1f1f23;--border:#2a2a2d;
+      --purple:#9147ff;--green:#43b581;--red:#f04747;--yellow:#f4a020;
+      --text:#efeff1;--muted:#adadb8;--dim:#5a5a64;
+    }
+    body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+    /* Header */
+    header{background:var(--card);border-bottom:2px solid var(--purple);padding:14px 24px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100}
+    .logo{font-size:18px;font-weight:700}
+    .badge{font-size:11px;background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:3px 10px;color:var(--muted)}
+    .status-dot{width:9px;height:9px;border-radius:50%;background:var(--green);animation:pulse 1.5s infinite;margin-left:auto}
+
+    /* Tabs */
+    .tabs{display:flex;gap:2px;background:var(--card);border-bottom:1px solid var(--border);padding:0 24px}
+    .tab{padding:12px 18px;font-size:13px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);transition:.2s;white-space:nowrap}
+    .tab.active{color:var(--purple);border-color:var(--purple)}
+    .tab:hover{color:var(--text)}
+
+    /* Layout */
+    .page{display:none;max-width:1000px;margin:24px auto;padding:0 16px;flex-direction:column;gap:20px}
+    .page.active{display:flex}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+    @media(max-width:660px){.grid2{grid-template-columns:1fr}}
+
+    /* Cards */
+    .card{background:var(--card);border-radius:10px;padding:20px}
+    .card-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--purple);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+
+    /* Rows */
+    .row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;gap:10px}
+    .row:last-child{border-bottom:none}
+    .row-label{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+    .row-label span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .row-sub{font-size:11px;color:var(--dim)}
+
+    /* Toggle */
+    .toggle{position:relative;width:42px;height:24px;flex-shrink:0}
+    .toggle input{opacity:0;width:0;height:0}
+    .slider{position:absolute;inset:0;background:var(--border);border-radius:24px;cursor:pointer;transition:.25s}
+    .slider::before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.25s}
+    .toggle input:checked+.slider{background:var(--purple)}
+    .toggle input:checked+.slider::before{transform:translateX(18px)}
+
+    /* Inputs */
+    input[type=text],input[type=number],input[type=url],select,textarea{
+      background:var(--card2);border:1px solid var(--border);color:var(--text);
+      border-radius:6px;padding:8px 12px;font-size:13px;width:100%;outline:none;
+      transition:border-color .2s;font-family:inherit;
+    }
+    input:focus,select:focus,textarea:focus{border-color:var(--purple)}
+    textarea{resize:vertical;min-height:80px;line-height:1.5}
+    select{cursor:pointer}
+
+    /* Buttons */
+    .btn{border:none;border-radius:6px;padding:9px 20px;font-size:13px;font-weight:700;cursor:pointer;transition:.2s;white-space:nowrap}
+    .btn-primary{background:var(--purple);color:#fff}.btn-primary:hover{background:#772ce8}
+    .btn-success{background:var(--green);color:#fff}
+    .btn-danger{background:var(--red);color:#fff}.btn-danger:hover{background:#c0392b}
+    .btn-sm{padding:5px 12px;font-size:12px}
+    .btn-ghost{background:var(--card2);color:var(--muted);border:1px solid var(--border)}.btn-ghost:hover{color:var(--text)}
+
+    /* Forms */
+    .form-group{display:flex;flex-direction:column;gap:6px}
+    .form-group label{font-size:12px;color:var(--muted)}
+    .form-row{display:flex;gap:10px}
+    .form-row>*{flex:1}
+    small{font-size:11px;color:var(--dim)}
+
+    /* Tags permissão */
+    .perm-select{font-size:12px;padding:4px 8px;width:auto}
+
+    /* Log */
+    .log-wrap{background:var(--card2);border-radius:8px;padding:12px;height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:3px}
+    .log-item{font-size:12px;font-family:'Consolas',monospace;color:var(--muted);animation:fadeUp .3s}
+    .log-item .t{color:var(--dim)}
+    .log-item.cmd .txt{color:var(--text)}
+    .log-item.mod .txt{color:var(--red)}
+    .log-item.stream .txt{color:var(--yellow)}
+    .log-item.sistema .txt{color:var(--green)}
+    .log-filter{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+    .log-filter button{font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:12px;background:none;color:var(--muted);cursor:pointer;transition:.2s}
+    .log-filter button.active{background:var(--purple);color:#fff;border-color:var(--purple)}
+
+    /* Cmd cards */
+    .cmd-card{background:var(--card2);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px;border-left:3px solid var(--border);transition:border-color .2s}
+    .cmd-card.active{border-left-color:var(--purple)}
+    .cmd-card-header{display:flex;align-items:center;gap:8px}
+    .cmd-card-header .emoji{font-size:18px}
+    .cmd-card-header .name{font-weight:700;font-size:14px;flex:1}
+    .cmd-card-actions{display:flex;gap:6px;align-items:center}
+    .cmd-msgs{font-size:11px;color:var(--dim);font-family:monospace;max-height:60px;overflow:hidden;text-overflow:ellipsis}
+    .cmd-grid{display:flex;flex-direction:column;gap:10px}
+
+    /* Tooltips via title */
+    [title]{cursor:help}
+
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+
+    .divider{height:1px;background:var(--border);margin:4px 0}
+    .chip{display:inline-flex;align-items:center;gap:4px;background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:3px 10px;font-size:11px;color:var(--muted)}
+    .section-desc{font-size:12px;color:var(--dim);margin-bottom:14px}
+
+    /* Variáveis de inserção */
+    .var-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+    .var-chip{background:var(--card2);border:1px solid var(--purple);color:var(--purple);border-radius:6px;padding:4px 10px;font-size:12px;font-family:monospace;cursor:pointer;transition:.15s;user-select:none}
+    .var-chip:hover{background:var(--purple);color:#fff}
+
+    /* Enquetes */
+    .poll-opcoes{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+    .poll-opcao-row{display:flex;gap:8px;align-items:center}
+    .poll-opcao-row input{flex:1}
+    .poll-opcao-row button{flex-shrink:0}
+    .poll-resultado{background:var(--card2);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px}
+    .poll-barra-wrap{display:flex;flex-direction:column;gap:4px}
+    .poll-barra-label{display:flex;justify-content:space-between;font-size:12px}
+    .poll-barra-bg{background:var(--border);border-radius:4px;height:8px;overflow:hidden}
+    .poll-barra-fill{height:100%;background:var(--purple);border-radius:4px;transition:width .5s}
+    .poll-status{font-size:12px;color:var(--muted);text-align:center}
+    .prediction-side{display:flex;flex-direction:column;gap:8px}
+    .pred-opcao{background:var(--card2);border-radius:8px;padding:12px;border-left:3px solid var(--border)}
+    .pred-opcao.azul{border-color:#1da1f2}
+    .pred-opcao.rosa{border-color:#ff79c6}
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🎮 Bot Admin</div>
+  <div class="badge" id="channelBadge">...</div>
+  <div class="badge" id="uptimeBadge">⏱ Carregando...</div>
+  <div class="status-dot"></div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-tab="comandos">💬 Comandos</div>
+  <div class="tab" data-tab="moderacao">🔨 Moderação</div>
+  <div class="tab" data-tab="stream">📡 Stream</div>
+  <div class="tab" data-tab="config">⚙️ Configurações</div>
+  <div class="tab" data-tab="enquetes">📊 Enquetes</div>
+  <div class="tab" data-tab="log">📋 Log ao vivo</div>
+</div>
+
+<!-- ── ABA COMANDOS ────────────────────────────────────────────────── -->
+<div class="page active" id="tab-comandos">
+
+  <div class="grid2">
+    <!-- Lista de comandos -->
+    <div class="card" style="grid-column:1/-1">
+      <div class="card-title">📝 Comandos Customizados</div>
+      <div class="cmd-grid" id="cmd-grid">Carregando...</div>
+    </div>
+  </div>
+
+  <!-- Criar novo comando -->
+  <div class="card">
+    <div class="card-title">➕ Criar Novo Comando</div>
+    <p class="section-desc">Crie comandos de texto que o bot responde no chat. Use <code>{usuario}</code> e <code>{alvo}</code> como variáveis.</p>
+    <div class="grid2" style="gap:12px;margin-bottom:12px">
+      <div class="form-group">
+        <label>Nome do comando</label>
+        <input type="text" id="newCmd" placeholder="!exemplo" maxlength="30">
+      </div>
+      <div class="form-group">
+        <label>Emoji</label>
+        <input type="text" id="newEmoji" placeholder="🎯" maxlength="4">
+      </div>
+      <div class="form-group">
+        <label>Permissão</label>
+        <select id="newPerm">
+          <option value="todos">👥 Todos</option>
+          <option value="subs">⭐ Subs+</option>
+          <option value="vip">💎 VIP+</option>
+          <option value="mods">🔧 Mods+</option>
+          <option value="broadcaster">👑 Só streamer</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Cooldown (segundos)</label>
+        <input type="number" id="newCooldown" value="10" min="0" max="3600">
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label>Mensagens (separe com linha em branco para ter variações aleatórias)</label>
+      <div class="var-chips">
+        <span style="font-size:11px;color:var(--dim);align-self:center">Inserir:</span>
+        <button type="button" class="var-chip" onclick="inserirVar('{usuario}')">@{usuario}</button>
+        <button type="button" class="var-chip" onclick="inserirVar('{alvo}')">@{alvo}</button>
+        <button type="button" class="var-chip" onclick="inserirVar('{canal}')">#{canal}</button>
+        <button type="button" class="var-chip" onclick="inserirVar(' KEKW')">KEKW</button>
+        <button type="button" class="var-chip" onclick="inserirVar(' LUL')">LUL</button>
+        <button type="button" class="var-chip" onclick="inserirVar(' PogChamp')">PogChamp</button>
+        <button type="button" class="var-chip" onclick="inserirVar(' monkaS')">monkaS</button>
+        <button type="button" class="var-chip" onclick="inserirVar(' 😂')">😂</button>
+        <button type="button" class="var-chip" onclick="inserirVar(' 🔥')">🔥</button>
+        <button type="button" class="var-chip" onclick="inserirVar(' 💀')">💀</button>
+      </div>
+      <textarea id="newMsg" placeholder="@{usuario} fez algo incrível!&#10;&#10;Nossa, @{usuario} arrasou de novo!"></textarea>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="addCmd()">Adicionar Comando</button>
+      <button class="btn btn-ghost" onclick="limparForm()">Limpar</button>
+    </div>
+  </div>
+
+  <!-- Cooldown global -->
+  <div class="card">
+    <div class="card-title">⏱ Cooldown Padrão</div>
+    <p class="section-desc">Tempo mínimo entre usos de um mesmo comando pelo mesmo usuário. Cada comando pode ter seu próprio cooldown.</p>
+    <div class="row">
+      <span>Cooldown padrão (segundos)</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="number" id="cooldownGlobal" style="width:80px" min="0" max="3600" value="10">
+        <button class="btn btn-primary btn-sm" onclick="salvarCooldownGlobal()">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── ABA MODERAÇÃO ───────────────────────────────────────────────── -->
+<div class="page" id="tab-moderacao">
+
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">🔨 Comandos de Moderação</div>
+      <p class="section-desc">Requerem que o bot seja moderador do canal.</p>
+      <div class="row">
+        <div class="row-label">
+          <span>🔨 !ban @usuario [motivo]</span>
+          <span class="row-sub">Bane permanentemente</span>
+        </div>
+        <label class="toggle"><input type="checkbox" data-path="moderation.ban_enabled"><span class="slider"></span></label>
+      </div>
+      <div class="row">
+        <div class="row-label">
+          <span>⏱ !timeout @usuario [seg] [motivo]</span>
+          <span class="row-sub">Timeout temporário</span>
+        </div>
+        <label class="toggle"><input type="checkbox" data-path="moderation.timeout_enabled"><span class="slider"></span></label>
+      </div>
+      <div class="row">
+        <div class="row-label">
+          <span>✅ !unban @usuario</span>
+          <span class="row-sub">Remove ban/timeout</span>
+        </div>
+        <label class="toggle"><input type="checkbox" data-path="moderation.unban_enabled"><span class="slider"></span></label>
+      </div>
+      <div class="divider"></div>
+      <div class="row">
+        <span title="Se ativo, apenas mods e broadcaster podem usar esses comandos">Apenas mods podem usar</span>
+        <label class="toggle"><input type="checkbox" data-path="moderation.apenas_mods"><span class="slider"></span></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🧪 Testar no Chat</div>
+      <p class="section-desc">Envia o comando diretamente para o chat como teste (como broadcaster).</p>
+      <div class="form-group" style="margin-bottom:10px">
+        <label>Usuário alvo para teste</label>
+        <input type="text" id="modTestUser" placeholder="nome_do_usuario">
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn btn-ghost" onclick="testarCmd('!timeout ' + document.getElementById('modTestUser').value + ' 60 Teste do painel')">Testar !timeout 60s</button>
+        <button class="btn btn-ghost" onclick="testarCmd('!unban ' + document.getElementById('modTestUser').value)">Testar !unban</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── ABA STREAM ─────────────────────────────────────────────────── -->
+<div class="page" id="tab-stream">
+
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">📡 Gerenciamento da Live</div>
+      <div class="row">
+        <div class="row-label">
+          <span>✏️ !mude Novo título</span>
+          <span class="row-sub">Altera o título da live</span>
+        </div>
+        <label class="toggle"><input type="checkbox" data-path="stream.mude_titulo_enabled"><span class="slider"></span></label>
+      </div>
+      <div class="row">
+        <div class="row-label">
+          <span>🎮 !jogo Nome do Jogo</span>
+          <span class="row-sub">Altera o jogo/categoria</span>
+        </div>
+        <label class="toggle"><input type="checkbox" data-path="stream.mude_jogo_enabled"><span class="slider"></span></label>
+      </div>
+      <div class="row">
+        <div class="row-label">
+          <span>🎬 !clip</span>
+          <span class="row-sub">Cria um clip da live</span>
+        </div>
+        <label class="toggle"><input type="checkbox" data-path="stream.clip_enabled"><span class="slider"></span></label>
+      </div>
+      <div class="row">
+        <div class="row-label">
+          <span>📣 !so @streamer</span>
+          <span class="row-sub">Shoutout oficial da Twitch</span>
+        </div>
+        <label class="toggle"><input type="checkbox" data-path="stream.so_enabled"><span class="slider"></span></label>
+      </div>
+      <div class="row">
+        <div class="row-label">
+          <span>⏱ !uptime</span>
+          <span class="row-sub">Tempo de live</span>
+        </div>
+        <label class="toggle"><input type="checkbox" data-path="stream.uptime_enabled"><span class="slider"></span></label>
+      </div>
+      <div class="divider"></div>
+      <div class="row">
+        <span>Apenas mods podem usar</span>
+        <label class="toggle"><input type="checkbox" data-path="stream.apenas_mods"><span class="slider"></span></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🧪 Testar no Chat</div>
+      <p class="section-desc">Testa os comandos de stream diretamente.</p>
+      <div class="form-group" style="margin-bottom:8px">
+        <label>Novo título</label>
+        <input type="text" id="testTitulo" placeholder="Meu novo título">
+      </div>
+      <button class="btn btn-ghost" style="width:100%;margin-bottom:8px" onclick="testarCmd('!mude ' + document.getElementById('testTitulo').value)">Testar !mude</button>
+      <div class="form-group" style="margin-bottom:8px">
+        <label>Nome do jogo</label>
+        <input type="text" id="testJogo" placeholder="Just Chatting">
+      </div>
+      <button class="btn btn-ghost" style="width:100%;margin-bottom:8px" onclick="testarCmd('!jogo ' + document.getElementById('testJogo').value)">Testar !jogo</button>
+      <button class="btn btn-ghost" style="width:100%" onclick="testarCmd('!uptime')">Testar !uptime</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── ABA ENQUETES ────────────────────────────────────────────────── -->
+<div class="page" id="tab-enquetes">
+
+  <div class="grid2">
+
+    <!-- Criar Enquete -->
+    <div class="card">
+      <div class="card-title">📊 Criar Enquete</div>
+      <p class="section-desc">A enquete aparece na Twitch para todos os viewers votarem.</p>
+      <div class="form-group" style="margin-bottom:12px">
+        <label>Pergunta</label>
+        <input type="text" id="pollTitulo" placeholder="Qual jogo jogar agora?" maxlength="60">
+      </div>
+      <div class="form-group" style="margin-bottom:8px">
+        <label>Opções (mín. 2, máx. 5)</label>
+        <div class="poll-opcoes" id="poll-opcoes">
+          <div class="poll-opcao-row">
+            <input type="text" placeholder="Opção 1" maxlength="25">
+            <button class="btn btn-ghost btn-sm" onclick="removerOpcao(this)" style="display:none">✕</button>
+          </div>
+          <div class="poll-opcao-row">
+            <input type="text" placeholder="Opção 2" maxlength="25">
+            <button class="btn btn-ghost btn-sm" onclick="removerOpcao(this)" style="display:none">✕</button>
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="adicionarOpcao()" id="btnAddOpcao">+ Adicionar opção</button>
+      </div>
+      <div class="divider" style="margin:16px 0"></div>
+      <div class="row">
+        <div class="row-label">
+          <span>💰 Votos com pontos do canal</span>
+          <span class="row-sub">Viewers gastam pontos para votar</span>
+        </div>
+        <label class="toggle"><input type="checkbox" id="pollUsarPontos" onchange="document.getElementById('pollPontosWrap').style.display=this.checked?'flex':'none'"><span class="slider"></span></label>
+      </div>
+      <div id="pollPontosWrap" style="display:none;align-items:center;gap:10px;margin-top:10px">
+        <label style="font-size:12px;color:var(--muted);white-space:nowrap">Custo por voto:</label>
+        <input type="number" id="pollPontos" value="100" min="1" max="1000000" style="width:120px">
+        <span style="font-size:12px;color:var(--dim)">pontos</span>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <span>Duração</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="pollDuracao" style="width:auto">
+            <option value="60">1 min</option>
+            <option value="120">2 min</option>
+            <option value="180">3 min</option>
+            <option value="300" selected>5 min</option>
+            <option value="600">10 min</option>
+            <option value="1800">30 min</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button class="btn btn-primary" style="flex:1" onclick="criarEnquete()">🗳️ Criar Enquete</button>
+        <button class="btn btn-danger btn-sm" onclick="encerrarEnquete()">Encerrar</button>
+      </div>
+    </div>
+
+    <!-- Criar Predição -->
+    <div class="card">
+      <div class="card-title">🔮 Criar Predição</div>
+      <p class="section-desc">Viewers apostam pontos do canal em um resultado. O streamer decide o vencedor.</p>
+      <div class="form-group" style="margin-bottom:12px">
+        <label>Evento / Pergunta</label>
+        <input type="text" id="predTitulo" placeholder="O streamer vai morrer nessa fase?" maxlength="45">
+      </div>
+      <div class="prediction-side">
+        <div class="pred-opcao azul">
+          <label style="font-size:11px;color:#1da1f2;font-weight:700;display:block;margin-bottom:6px">🔵 Opção Azul</label>
+          <input type="text" id="predAzul" placeholder="Sim" maxlength="25">
+        </div>
+        <div class="pred-opcao rosa">
+          <label style="font-size:11px;color:#ff79c6;font-weight:700;display:block;margin-bottom:6px">🔴 Opção Rosa</label>
+          <input type="text" id="predRosa" placeholder="Não" maxlength="25">
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <span>Duração para apostas</span>
+        <select id="predDuracao" style="width:auto">
+          <option value="30">30 seg</option>
+          <option value="60" selected>1 min</option>
+          <option value="120">2 min</option>
+          <option value="180">3 min</option>
+          <option value="300">5 min</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button class="btn btn-primary" style="flex:1" onclick="criarPredicao()">🔮 Iniciar Predição</button>
+        <button class="btn btn-danger btn-sm" onclick="cancelarPredicao()">Cancelar</button>
+      </div>
+      <div id="predAtiva" style="display:none;margin-top:14px;background:var(--card2);border-radius:8px;padding:12px">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Predição ativa — escolha o vencedor:</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-sm" style="flex:1;background:#1da1f2;color:#fff" onclick="resolverPredicao('RESOLVED','azul')">🔵 Azul venceu</button>
+          <button class="btn btn-sm" style="flex:1;background:#ff79c6;color:#fff" onclick="resolverPredicao('RESOLVED','rosa')">🔴 Rosa venceu</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Resultado da enquete ao vivo -->
+    <div class="card" style="grid-column:1/-1">
+      <div class="card-title">📈 Enquete Ativa</div>
+      <div id="pollAtual" class="poll-status">Nenhuma enquete ativa no momento.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── ABA CONFIGURAÇÕES ───────────────────────────────────────────── -->
+<div class="page" id="tab-config">
+
+  <div class="grid2">
+    <!-- Pix -->
+    <div class="card">
+      <div class="card-title">💸 Pix</div>
+      <p class="section-desc">Quando alguém usar !pix no chat, o bot responde com a chave.</p>
+      <div class="row">
+        <span>Ativar !pix</span>
+        <label class="toggle"><input type="checkbox" data-path="pix.enabled"><span class="slider"></span></label>
+      </div>
+      <div class="form-group" style="margin-top:12px;gap:10px">
+        <div class="form-group">
+          <label>Tipo da chave</label>
+          <select data-path="pix.tipo">
+            <option value="aleatório">Aleatório</option>
+            <option value="CPF">CPF</option>
+            <option value="E-mail">E-mail</option>
+            <option value="Telefone">Telefone</option>
+            <option value="CNPJ">CNPJ</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Chave Pix</label>
+          <input type="text" data-path="pix.chave" placeholder="sua@chave.pix">
+        </div>
+      </div>
+      <button class="btn btn-primary" style="margin-top:12px;width:100%" onclick="salvarSettings()">Salvar Pix</button>
+    </div>
+
+    <!-- Social -->
+    <div class="card">
+      <div class="card-title">🔗 Redes Sociais</div>
+      <p class="section-desc">Ative comandos como !discord !instagram !youtube !twitter no chat.</p>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="form-group">
+          <label>💬 Discord (link de convite)</label>
+          <input type="url" data-path="social.discord" placeholder="https://discord.gg/...">
+        </div>
+        <div class="form-group">
+          <label>📸 Instagram</label>
+          <input type="url" data-path="social.instagram" placeholder="https://instagram.com/...">
+        </div>
+        <div class="form-group">
+          <label>▶️ YouTube</label>
+          <input type="url" data-path="social.youtube" placeholder="https://youtube.com/...">
+        </div>
+        <div class="form-group">
+          <label>🐦 Twitter/X</label>
+          <input type="url" data-path="social.twitter" placeholder="https://twitter.com/...">
+        </div>
+      </div>
+      <button class="btn btn-primary" style="margin-top:14px;width:100%" onclick="salvarSettings()">Salvar Redes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── ABA LOG ─────────────────────────────────────────────────────── -->
+<div class="page" id="tab-log">
+  <div class="card">
+    <div class="card-title">📋 Log ao Vivo</div>
+    <div class="log-filter">
+      <button class="active" data-filter="todos">Todos</button>
+      <button data-filter="cmd">💬 Comandos</button>
+      <button data-filter="mod">🔨 Moderação</button>
+      <button data-filter="stream">📡 Stream</button>
+      <button data-filter="sistema">🟢 Sistema</button>
+    </div>
+    <div class="log-wrap" id="log-wrap">
+      <div class="log-item sistema"><span class="t">--:--:--</span> <span class="txt">Aguardando eventos...</span></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:10px">
+      <button class="btn btn-ghost btn-sm" onclick="limparLog()">Limpar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let S = {};
+let logFilter = 'todos';
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+// ── Settings load/save ────────────────────────────────────────────────────────
+async function carregarSettings() {
+  const res = await fetch('/api/settings');
+  S = await res.json();
+  aplicarSettings();
+  renderCmds();
+  document.getElementById('channelBadge').textContent = '#' + (S.channel || 'universo_redblack');
+  document.getElementById('cooldownGlobal').value = (S.cooldown_ms || 10000) / 1000;
+}
+
+function aplicarSettings() {
+  // Toggles e inputs com data-path
+  document.querySelectorAll('[data-path]').forEach(el => {
+    const val = getPath(S, el.dataset.path);
+    if (el.type === 'checkbox') el.checked = !!val;
+    else el.value = val ?? '';
+    el.addEventListener('change', () => {
+      let v = el.type === 'checkbox' ? el.checked : el.value;
+      setPath(S, el.dataset.path, v);
+    });
+  });
+}
+
+async function salvarSettings() {
+  await fetch('/api/settings', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(S)
+  });
+  showToast('Salvo!');
+}
+
+async function salvarCooldownGlobal() {
+  S.cooldown_ms = parseInt(document.getElementById('cooldownGlobal').value) * 1000;
+  await salvarSettings();
+}
+
+// ── Comandos ──────────────────────────────────────────────────────────────────
+function renderCmds() {
+  const grid = document.getElementById('cmd-grid');
+  grid.innerHTML = '';
+  for (const [cmd, cfg] of Object.entries(S.commands || {})) {
+    const card = document.createElement('div');
+    card.className = 'cmd-card' + (cfg.enabled ? ' active' : '');
+    card.innerHTML = `
+      <div class="cmd-card-header">
+        <span class="emoji">${cfg.emoji || '❓'}</span>
+        <span class="name">${cmd}</span>
+        <span class="chip">${permLabel(cfg.permissao)}</span>
+        <span class="chip">⏱ ${(cfg.cooldown_ms||0)/1000}s</span>
+        <div class="cmd-card-actions">
+          <label class="toggle">
+            <input type="checkbox" ${cfg.enabled?'checked':''} onchange="toggleCmd('${cmd}',this.checked)">
+            <span class="slider"></span>
+          </label>
+          <button class="btn btn-danger btn-sm" onclick="removerCmd('${cmd}')">✕</button>
+        </div>
+      </div>
+      <div class="cmd-msgs">${(cfg.mensagens||[]).join(' / ')}</div>
+    `;
+    grid.appendChild(card);
+  }
+  if (!Object.keys(S.commands||{}).length) {
+    grid.innerHTML = '<div style="color:var(--dim);font-size:13px;padding:10px">Nenhum comando. Crie um abaixo!</div>';
+  }
+}
+
+async function toggleCmd(cmd, enabled) {
+  S.commands[cmd].enabled = enabled;
+  await salvarSettings();
+  renderCmds();
+}
+
+async function removerCmd(cmd) {
+  if (!confirm(`Remover o comando ${cmd}?`)) return;
+  delete S.commands[cmd];
+  await salvarSettings();
+  renderCmds();
+}
+
+async function addCmd() {
+  const cmd     = document.getElementById('newCmd').value.trim().toLowerCase();
+  const emoji   = document.getElementById('newEmoji').value.trim() || '❓';
+  const perm    = document.getElementById('newPerm').value;
+  const cooldown= parseInt(document.getElementById('newCooldown').value) * 1000;
+  const rawMsg  = document.getElementById('newMsg').value.trim();
+  if (!cmd.startsWith('!')) { showToast('O comando deve começar com !', 'error'); return; }
+  if (!rawMsg) { showToast('Escreva pelo menos uma mensagem', 'error'); return; }
+  const mensagens = rawMsg.split(/\n\n+/).map(s => s.trim()).filter(Boolean);
+  S.commands[cmd] = { enabled: true, emoji, permissao: perm, cooldown_ms: cooldown, mensagens };
+  await salvarSettings();
+  limparForm();
+  renderCmds();
+}
+
+function limparForm() {
+  ['newCmd','newEmoji','newMsg'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('newCooldown').value = 10;
+  document.getElementById('newPerm').value = 'todos';
+}
+
+// ── Testar comando ────────────────────────────────────────────────────────────
+async function testarCmd(cmd) {
+  if (!cmd.trim()) { showToast('Preencha os campos antes de testar', 'error'); return; }
+  await fetch('/api/test-cmd', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ cmd })
+  });
+  showToast('Comando enviado para o chat!');
+}
+
+// ── Log ao vivo ───────────────────────────────────────────────────────────────
+const logWrap = document.getElementById('log-wrap');
+const sse = new EventSource('/api/log');
+const logItems = [];
+
+sse.onmessage = (e) => {
+  const d = JSON.parse(e.data);
+  logItems.push(d);
+  if (logFilter === 'todos' || logFilter === d.tipo) appendLog(d);
+};
+
+function appendLog(d) {
+  if (logWrap.querySelector('.log-item[data-placeholder]')) logWrap.innerHTML = '';
+  const t = new Date(d.ts).toLocaleTimeString('pt-BR');
+  const li = document.createElement('div');
+  li.className = `log-item ${d.tipo}`;
+  li.innerHTML = `<span class="t">[${t}]</span> <span class="txt">${escHTML(d.texto)}</span>`;
+  logWrap.appendChild(li);
+  logWrap.scrollTop = logWrap.scrollHeight;
+}
+
+function limparLog() { logWrap.innerHTML = ''; }
+
+document.querySelectorAll('.log-filter button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.log-filter button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    logFilter = btn.dataset.filter;
+    logWrap.innerHTML = '';
+    logItems.filter(d => logFilter === 'todos' || d.tipo === logFilter).forEach(appendLog);
+  });
+});
+
+// ── Inserir variável no cursor do textarea ────────────────────────────────────
+function inserirVar(texto) {
+  const ta  = document.getElementById('newMsg');
+  const ini = ta.selectionStart;
+  const fim = ta.selectionEnd;
+  ta.value  = ta.value.substring(0, ini) + texto + ta.value.substring(fim);
+  ta.selectionStart = ta.selectionEnd = ini + texto.length;
+  ta.focus();
+}
+
+// ── Enquetes ──────────────────────────────────────────────────────────────────
+let pollAtualId     = null;
+let predicaoAtualId = null;
+let pollTimer       = null;
+
+function adicionarOpcao() {
+  const lista = document.getElementById('poll-opcoes');
+  const total = lista.querySelectorAll('.poll-opcao-row').length;
+  if (total >= 5) { showToast('Máximo de 5 opções', 'error'); return; }
+  const row = document.createElement('div');
+  row.className = 'poll-opcao-row';
+  row.innerHTML = `<input type="text" placeholder="Opção ${total+1}" maxlength="25"><button class="btn btn-ghost btn-sm" onclick="removerOpcao(this)">✕</button>`;
+  lista.appendChild(row);
+  // mostra botão remover em todas se tiver mais de 2
+  atualizarBotoesRemover();
+  if (total + 1 >= 5) document.getElementById('btnAddOpcao').style.display = 'none';
+}
+
+function removerOpcao(btn) {
+  btn.closest('.poll-opcao-row').remove();
+  atualizarBotoesRemover();
+  document.getElementById('btnAddOpcao').style.display = '';
+}
+
+function atualizarBotoesRemover() {
+  const rows = document.querySelectorAll('.poll-opcao-row');
+  rows.forEach(r => {
+    r.querySelector('button').style.display = rows.length > 2 ? '' : 'none';
+  });
+}
+
+async function criarEnquete() {
+  const titulo   = document.getElementById('pollTitulo').value.trim();
+  const opcoes   = [...document.querySelectorAll('.poll-opcao-row input')]
+    .map(i => i.value.trim()).filter(Boolean);
+  const duracao  = parseInt(document.getElementById('pollDuracao').value);
+  const usaPontos = document.getElementById('pollUsarPontos').checked;
+  const pontos   = parseInt(document.getElementById('pollPontos').value) || 100;
+
+  if (!titulo)        { showToast('Digite a pergunta', 'error'); return; }
+  if (opcoes.length < 2) { showToast('Mín. 2 opções preenchidas', 'error'); return; }
+
+  const res = await fetch('/api/poll', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ titulo, opcoes, duracao, usaPontos, pontos }),
+  });
+  const d = await res.json();
+  if (d.ok) {
+    pollAtualId = d.id;
+    showToast('Enquete criada!');
+    iniciarMonitorEnquete();
+  } else {
+    showToast('Erro: ' + (d.erro || 'desconhecido'), 'error');
+  }
+}
+
+async function encerrarEnquete() {
+  if (!pollAtualId) { showToast('Nenhuma enquete ativa', 'error'); return; }
+  await fetch('/api/poll/' + pollAtualId, { method: 'DELETE' });
+  pollAtualId = null;
+  clearInterval(pollTimer);
+  document.getElementById('pollAtual').innerHTML = '<div class="poll-status">Enquete encerrada.</div>';
+  showToast('Enquete encerrada!');
+}
+
+function iniciarMonitorEnquete() {
+  clearInterval(pollTimer);
+  pollTimer = setInterval(atualizarEnqueteAtiva, 5000);
+  atualizarEnqueteAtiva();
+}
+
+async function atualizarEnqueteAtiva() {
+  if (!pollAtualId) return;
+  const res = await fetch('/api/poll/' + pollAtualId);
+  const d   = await res.json();
+  if (!d || !d.choices) {
+    clearInterval(pollTimer);
+    document.getElementById('pollAtual').innerHTML = '<div class="poll-status">Enquete encerrada ou não encontrada.</div>';
+    return;
+  }
+  const total = d.choices.reduce((s, c) => s + c.votes, 0) || 1;
+  const status = d.status === 'ACTIVE' ? '🟢 Ativa' : '🔴 Encerrada';
+  document.getElementById('pollAtual').innerHTML = `
+    <div style="font-size:13px;font-weight:700;margin-bottom:12px">${escHTML(d.title)} <span style="color:var(--muted);font-weight:400">${status} · ${total} voto${total!==1?'s':''}</span></div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      ${d.choices.map(c => {
+        const pct = Math.round(c.votes / total * 100);
+        return `<div class="poll-barra-wrap">
+          <div class="poll-barra-label"><span>${escHTML(c.title)}</span><span>${c.votes} (${pct}%)</span></div>
+          <div class="poll-barra-bg"><div class="poll-barra-fill" style="width:${pct}%"></div></div>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+  if (d.status !== 'ACTIVE') { clearInterval(pollTimer); pollAtualId = null; }
+}
+
+// ── Predições ─────────────────────────────────────────────────────────────────
+async function criarPredicao() {
+  const titulo  = document.getElementById('predTitulo').value.trim();
+  const azul    = document.getElementById('predAzul').value.trim()  || 'Sim';
+  const rosa    = document.getElementById('predRosa').value.trim()  || 'Não';
+  const duracao = parseInt(document.getElementById('predDuracao').value);
+  if (!titulo) { showToast('Digite o evento/pergunta', 'error'); return; }
+
+  const res = await fetch('/api/prediction', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ titulo, azul, rosa, duracao }),
+  });
+  const d = await res.json();
+  if (d.ok) {
+    predicaoAtualId = d.id;
+    document.getElementById('predAtiva').style.display = 'block';
+    showToast('Predição iniciada!');
+  } else {
+    showToast('Erro: ' + (d.erro || 'desconhecido'), 'error');
+  }
+}
+
+async function resolverPredicao(status, lado) {
+  if (!predicaoAtualId) { showToast('Nenhuma predição ativa', 'error'); return; }
+  const azulId = lado === 'azul' ? 0 : 1;
+  await fetch('/api/prediction/' + predicaoAtualId, {
+    method: 'PATCH',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ status, winningOutcomeIndex: azulId }),
+  });
+  predicaoAtualId = null;
+  document.getElementById('predAtiva').style.display = 'none';
+  showToast('Predição resolvida!');
+}
+
+async function cancelarPredicao() {
+  if (!predicaoAtualId) return;
+  await fetch('/api/prediction/' + predicaoAtualId, {
+    method: 'PATCH',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ status: 'CANCELED' }),
+  });
+  predicaoAtualId = null;
+  document.getElementById('predAtiva').style.display = 'none';
+  showToast('Predição cancelada.');
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function getPath(obj, path) {
+  return path.split('.').reduce((o,k) => o?.[k], obj);
+}
+function setPath(obj, path, val) {
+  const keys = path.split('.');
+  const last = keys.pop();
+  const target = keys.reduce((o,k) => o[k], obj);
+  target[last] = val;
+}
+function permLabel(p) {
+  return {todos:'👥 Todos',subs:'⭐ Subs',vip:'💎 VIP',mods:'🔧 Mods',broadcaster:'👑 Streamer'}[p] || p;
+}
+function escHTML(s) {
+  return String(s).replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+let toastTimer;
+function showToast(msg, tipo = 'ok') {
+  let toast = document.getElementById('toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast';
+    toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:10px 24px;border-radius:20px;font-size:13px;font-weight:700;z-index:999;transition:opacity .3s;pointer-events:none';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.background = tipo === 'error' ? 'var(--red)' : 'var(--green)';
+  toast.style.color = '#fff';
+  toast.style.opacity = '1';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.style.opacity = '0', 2500);
+}
+
+// Auto-save em qualquer toggle/select com data-path
+document.addEventListener('change', (e) => {
+  if (e.target.dataset.path) salvarSettings();
+});
+
+carregarSettings();
+</script>
+</body>
+</html>

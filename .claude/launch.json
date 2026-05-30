@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "twitch-ext-panel",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-l", "3000", "public"],
+      "port": 3000
+    }
+  ]
+}

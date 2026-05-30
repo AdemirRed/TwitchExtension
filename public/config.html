@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configurações da Extensão</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="config-container">
+    <h1>⚙️ Configurações</h1>
+    <p class="subtitle">Personalize os comandos e efeitos da extensão no seu canal.</p>
+
+    <div class="section">
+      <h3>Comandos ativos</h3>
+
+      <div class="toggle-row">
+        <span>💧 !hidrate — Lembrete de hidratação</span>
+        <label class="toggle">
+          <input type="checkbox" id="cmd_hidrate" data-setting="cmd_hidrate" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <span>🧘 !alongar — Lembrete de alongamento</span>
+        <label class="toggle">
+          <input type="checkbox" id="cmd_alongar" data-setting="cmd_alongar" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <span>💀 !skill — Culpar a skill</span>
+        <label class="toggle">
+          <input type="checkbox" id="cmd_skill" data-setting="cmd_skill" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <span>👻 !lurk — Modo lurk</span>
+        <label class="toggle">
+          <input type="checkbox" id="cmd_lurk" data-setting="cmd_lurk" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <span>🔥 !hype — Hype com confetti</span>
+        <label class="toggle">
+          <input type="checkbox" id="cmd_hype" data-setting="cmd_hype" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Efeitos visuais</h3>
+      <div class="toggle-row">
+        <span>Mostrar overlay de efeitos no vídeo</span>
+        <label class="toggle">
+          <input type="checkbox" id="overlay_efeitos" data-setting="overlay_efeitos" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Cooldown</h3>
+      <div class="toggle-row">
+        <span>Cooldown por comando (segundos)</span>
+        <input
+          id="cooldown_segundos"
+          data-setting="cooldown_segundos"
+          type="number" min="0" max="300" value="30"
+          style="width:60px; background:#2a2a2d; border:1px solid #3a3a3d; color:#efeff1; border-radius:4px; padding:4px 8px; font-size:13px; text-align:center;"
+        >
+      </div>
+    </div>
+
+    <button class="save-btn" id="save-btn">Salvar configurações</button>
+  </div>
+
+  <script src="https://extension-files.twitch.tv/helper/v1/twitch-ext.min.js"></script>
+  <script src="js/twitch-ext.js"></script>
+  <script src="js/config.js"></script>
+</body>
+</html>

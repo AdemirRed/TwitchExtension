@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel - Comandos</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    #dev-tools { display: none; padding: 8px; background: #0e0e10; border-top: 1px solid #3a3a3d; }
+    #dev-tools p { font-size: 10px; color: #5a5a64; margin-bottom: 6px; }
+    #dev-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
+    #dev-buttons button {
+      background: #2a2a2d; border: 1px solid #9147ff; color: #9147ff;
+      border-radius: 3px; padding: 3px 8px; font-size: 11px; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="panel-container">
+    <div class="panel-header">
+      <div class="dot"></div>
+      <h2>Comandos ao Vivo</h2>
+    </div>
+    <div class="command-list" id="command-list"></div>
+  </div>
+
+  <div id="dev-tools">
+    <p>DEV: clique para simular</p>
+    <div id="dev-buttons"></div>
+  </div>
+
+  <script src="https://extension-files.twitch.tv/helper/v1/twitch-ext.min.js"></script>
+  <script src="js/twitch-ext.js"></script>
+  <script src="js/panel.js"></script>
+</body>
+</html>

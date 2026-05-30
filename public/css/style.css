@@ -1,0 +1,240 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Roobert', 'Inter', sans-serif;
+  background: transparent;
+  color: #efeff1;
+  overflow: hidden;
+}
+
+/* ── Panel ── */
+.panel-container {
+  background: #18181b;
+  width: 100%;
+  height: 300px;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #3a3a3d;
+  padding-bottom: 8px;
+}
+
+.panel-header .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #9147ff;
+  animation: pulse 1.5s infinite;
+}
+
+.panel-header h2 {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #adadb8;
+}
+
+.command-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.command-item {
+  background: #1f1f23;
+  border-left: 3px solid #9147ff;
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-size: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  animation: slideIn 0.3s ease;
+}
+
+.command-item .cmd-name {
+  color: #9147ff;
+  font-weight: 700;
+}
+
+.command-item .cmd-user {
+  color: #adadb8;
+  font-size: 11px;
+}
+
+.no-commands {
+  text-align: center;
+  color: #5a5a64;
+  font-size: 12px;
+  margin-top: 30px;
+}
+
+/* ── Overlay ── */
+.overlay-container {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.effect-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.effect-text {
+  font-size: 64px;
+  font-weight: 900;
+  text-shadow: 0 0 20px rgba(145, 71, 255, 0.8), 2px 2px 0 #000;
+  animation: popIn 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.effect-text.visible {
+  animation: popIn 0.4s forwards, fadeOut 0.5s 2.5s forwards;
+}
+
+.confetti-piece {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  animation: confettiFall 3s ease-in forwards;
+}
+
+/* ── Config ── */
+.config-container {
+  background: #18181b;
+  min-height: 700px;
+  padding: 24px;
+}
+
+.config-container h1 {
+  font-size: 18px;
+  margin-bottom: 4px;
+}
+
+.config-container .subtitle {
+  color: #adadb8;
+  font-size: 13px;
+  margin-bottom: 24px;
+}
+
+.section {
+  background: #1f1f23;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.section h3 {
+  font-size: 13px;
+  color: #9147ff;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+
+.toggle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #2a2a2d;
+  font-size: 13px;
+}
+
+.toggle-row:last-child {
+  border-bottom: none;
+}
+
+.toggle {
+  position: relative;
+  width: 40px;
+  height: 22px;
+}
+
+.toggle input { opacity: 0; width: 0; height: 0; }
+
+.slider {
+  position: absolute;
+  inset: 0;
+  background: #3a3a3d;
+  border-radius: 22px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.slider:before {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  left: 3px;
+  top: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: 0.3s;
+}
+
+.toggle input:checked + .slider { background: #9147ff; }
+.toggle input:checked + .slider:before { transform: translateX(18px); }
+
+.save-btn {
+  background: #9147ff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 24px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 8px;
+  transition: background 0.2s;
+}
+
+.save-btn:hover { background: #772ce8; }
+
+/* ── Animações ── */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes popIn {
+  0%   { opacity: 0; transform: scale(0.3) rotate(-5deg); }
+  60%  { opacity: 1; transform: scale(1.2) rotate(2deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+@keyframes fadeOut {
+  to { opacity: 0; transform: scale(0.8); }
+}
+
+@keyframes confettiFall {
+  0%   { transform: translateY(-100px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+}

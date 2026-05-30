@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mobile - Comandos</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    body { background: #18181b; }
+    .mobile-container { padding: 12px; }
+    .mobile-header {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 12px; padding-bottom: 10px;
+      border-bottom: 1px solid #3a3a3d;
+    }
+    .mobile-header .dot { width: 8px; height: 8px; border-radius: 50%; background: #9147ff; animation: pulse 1.5s infinite; }
+    .mobile-header span { font-size: 13px; font-weight: 700; color: #adadb8; text-transform: uppercase; letter-spacing: 0.5px; }
+    .cmd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .cmd-card {
+      background: #1f1f23; border-radius: 8px; padding: 14px 10px;
+      text-align: center; cursor: pointer; border: 1px solid #2a2a2d;
+      transition: border-color 0.2s, transform 0.1s;
+      active: transform scale(0.96);
+    }
+    .cmd-card:active { transform: scale(0.96); }
+    .cmd-card .icon { font-size: 28px; display: block; margin-bottom: 6px; }
+    .cmd-card .name { font-size: 12px; font-weight: 700; color: #9147ff; }
+    .cmd-card .desc { font-size: 10px; color: #5a5a64; margin-top: 2px; }
+    .toast {
+      position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+      background: #9147ff; color: #fff; padding: 8px 20px;
+      border-radius: 20px; font-size: 13px; font-weight: 700;
+      opacity: 0; transition: opacity 0.3s; white-space: nowrap; pointer-events: none;
+    }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="mobile-container">
+    <div class="mobile-header">
+      <div class="dot"></div>
+      <span>Comandos</span>
+    </div>
+    <div class="cmd-grid" id="cmd-grid"></div>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <script src="https://extension-files.twitch.tv/helper/v1/twitch-ext.min.js"></script>
+  <script src="js/twitch-ext.js"></script>
+  <script>
+    const CMDS = [
+      { cmd: '!hidrate', icon: '💧', desc: 'Lembrar de beber água' },
+      { cmd: '!alongar', icon: '🧘', desc: 'Hora de se alongar' },
+      { cmd: '!skill',   icon: '💀', desc: 'Culpar a skill' },
+      { cmd: '!hype',    icon: '🔥', desc: 'Hype na chat!' },
+      { cmd: '!lurk',    icon: '👻', desc: 'Entrar em modo lurk' },
+    ];
+
+    const grid = document.getElementById('cmd-grid');
+    const toast = document.getElementById('toast');
+    let toastTimer;
+
+    function showToast(msg) {
+      clearTimeout(toastTimer);
+      toast.textContent = msg;
+      toast.classList.add('show');
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+    }
+
+    let auth = null;
+    TwitchExt.onAuthorized(a => { auth = a; });
+
+    CMDS.forEach(({ cmd, icon, desc }) => {
+      const card = document.createElement('div');
+      card.className = 'cmd-card';
+      card.innerHTML = `<span class="icon">${icon}</span><div class="name">${cmd}</div><div class="desc">${desc}</div>`;
+      card.onclick = () => {
+        showToast(icon + ' ' + cmd + ' enviado!');
+        // Envio via PubSub quando integração de backend estiver pronta
+        TwitchExt.send('broadcast', 'application/json', JSON.stringify({ type: 'command', cmd, user: auth?.userId || 'mobile_user' }));
+      };
+      grid.appendChild(card);
+    });
+  </script>
+</body>
+</html>

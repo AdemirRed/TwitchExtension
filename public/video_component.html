@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Componente de Video</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    body { background: rgba(0,0,0,0.75); }
+    .component-box {
+      width: 100%; height: 100%;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 8px; gap: 6px;
+    }
+    .last-cmd {
+      font-size: 22px; font-weight: 900;
+      text-shadow: 0 0 12px rgba(145,71,255,0.9);
+      text-align: center;
+      animation: popIn 0.4s forwards;
+    }
+    .cmd-counter {
+      font-size: 11px; color: #adadb8;
+    }
+    @keyframes popIn {
+      from { transform: scale(0.5); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="component-box">
+    <div class="last-cmd" id="last-cmd">⌨️ Aguardando...</div>
+    <div class="cmd-counter" id="cmd-counter">0 comandos usados</div>
+  </div>
+
+  <script src="https://extension-files.twitch.tv/helper/v1/twitch-ext.min.js"></script>
+  <script src="js/twitch-ext.js"></script>
+  <script>
+    let count = 0;
+    const lastCmd = document.getElementById('last-cmd');
+    const counter = document.getElementById('cmd-counter');
+    const EMOJIS = { '!hidrate':'💧','!alongar':'🧘','!skill':'💀','!hype':'🔥','!lurk':'👻' };
+
+    TwitchExt.onAuthorized(() => {
+      TwitchExt.listen('broadcast', (t, ct, msg) => {
+        try {
+          const d = JSON.parse(msg);
+          if (d.type === 'command') {
+            count++;
+            const e = EMOJIS[d.cmd] || '❓';
+            lastCmd.textContent = e + ' ' + d.cmd.toUpperCase();
+            lastCmd.style.animation = 'none';
+            void lastCmd.offsetWidth;
+            lastCmd.style.animation = '';
+            counter.textContent = count + ' comando' + (count !== 1 ? 's' : '') + ' usados';
+          }
+        } catch(e) {}
+      });
+    });
+  </script>
+</body>
+</html>

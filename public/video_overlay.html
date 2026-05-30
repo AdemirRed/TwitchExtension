@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Overlay - Efeitos</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    body { background: transparent; }
+    #dev-tools {
+      display: none; position: fixed; bottom: 12px; left: 50%;
+      transform: translateX(-50%); flex-wrap: wrap; gap: 6px;
+      background: rgba(0,0,0,0.6); padding: 8px 12px; border-radius: 8px;
+    }
+    #dev-tools button {
+      background: #2a2a2d; border: 1px solid #9147ff; color: #efeff1;
+      border-radius: 4px; padding: 5px 10px; font-size: 12px; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="overlay-container">
+    <div class="effect-layer" id="effect-layer">
+      <span class="effect-text" id="effect-text"></span>
+    </div>
+  </div>
+
+  <div id="dev-tools">
+    <button data-cmd="!hidrate">!hidrate</button>
+    <button data-cmd="!alongar">!alongar</button>
+    <button data-cmd="!skill">!skill</button>
+    <button data-cmd="!hype">!hype</button>
+    <button data-cmd="!lurk">!lurk</button>
+  </div>
+
+  <script src="https://extension-files.twitch.tv/helper/v1/twitch-ext.min.js"></script>
+  <script src="js/twitch-ext.js"></script>
+  <script src="js/overlay.js"></script>
+</body>
+</html>
