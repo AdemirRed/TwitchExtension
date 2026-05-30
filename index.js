@@ -1,28 +1,44 @@
 require('dotenv').config();
-const http   = require('http');
-const db     = require('./db');
-const bot    = require('./bot');
+const http = require('http');
+
+// ── Diagnóstico de variáveis obrigatórias ─────────────────────────────────────
+const REQUIRED = ['DATABASE_URL', 'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'BOT_OAUTH_TOKEN', 'SESSION_SECRET'];
+let temErro = false;
+
+console.log('\n=== Variáveis de ambiente ===');
+REQUIRED.forEach(key => {
+  const val = process.env[key];
+  if (!val) {
+    console.error(`❌ FALTANDO: ${key}`);
+    temErro = true;
+  } else {
+    console.log(`✅ ${key} = ${val.substring(0, 12)}...`);
+  }
+});
+
+if (temErro) {
+  console.error('\n❌ Variáveis obrigatórias ausentes. Configure-as no Railway → Variables.\n');
+  process.exit(1);
+}
+
+console.log('============================\n');
+
+const db  = require('./db');
+const bot = require('./bot');
 const { app, PORT, iniciarSelfPing } = require('./server');
 
 async function main() {
-  // 1. Banco de dados
   await db.init();
-
-  // 2. Bot TMI (multi-canal)
   await bot.start();
 
-  // 3. Servidor web
   http.createServer(app).listen(PORT, () => {
-    console.log(`\n🚀 Servidor em ${process.env.BASE_URL || 'http://localhost:' + PORT}`);
-    console.log(`📺 Landing:  ${process.env.BASE_URL || 'http://localhost:' + PORT}/`);
-    console.log(`⚙️  Painel:   ${process.env.BASE_URL || 'http://localhost:' + PORT}/painel\n`);
+    console.log(`\n🚀 ${process.env.BASE_URL || 'http://localhost:' + PORT}`);
   });
 
-  // 4. Self-ping (mantém Railway + Supabase ativos)
   iniciarSelfPing();
 }
 
 main().catch(err => {
-  console.error('Erro fatal na inicialização:', err);
+  console.error('Erro fatal:', err.message);
   process.exit(1);
 });
