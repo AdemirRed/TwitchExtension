@@ -1,4 +1,10 @@
 require('dotenv').config();
+
+// Força resolução DNS priorizando IPv4 (Railway não tem rede IPv6 e o
+// Supabase resolve o host direto só em IPv6 → ENETUNREACH). Precisa vir
+// antes de qualquer require que abra conexão de rede.
+require('dns').setDefaultResultOrder('ipv4first');
+
 const http = require('http');
 
 // ── Diagnóstico de variáveis obrigatórias ─────────────────────────────────────

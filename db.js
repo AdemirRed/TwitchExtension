@@ -4,7 +4,6 @@ const DEFAULT_SETTINGS = require('./settings.json');
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false },
-  family: 4, // Força IPv4 (Railway resolve como IPv6 por padrão)
 });
 
 async function q(sql, params = []) {
