@@ -2,6 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Componente de Video</title>
   <link rel="stylesheet" href="css/style.css">
   <style>
@@ -18,9 +19,7 @@
       text-align: center;
       animation: popIn 0.4s forwards;
     }
-    .cmd-counter {
-      font-size: 11px; color: #adadb8;
-    }
+    .cmd-counter { font-size: 11px; color: #adadb8; }
     @keyframes popIn {
       from { transform: scale(0.5); opacity: 0; }
       to   { transform: scale(1);   opacity: 1; }
@@ -35,28 +34,6 @@
 
   <script src="https://extension-files.twitch.tv/helper/v1/twitch-ext.min.js"></script>
   <script src="js/twitch-ext.js"></script>
-  <script>
-    let count = 0;
-    const lastCmd = document.getElementById('last-cmd');
-    const counter = document.getElementById('cmd-counter');
-    const EMOJIS = { '!hidrate':'💧','!alongar':'🧘','!skill':'💀','!hype':'🔥','!lurk':'👻' };
-
-    TwitchExt.onAuthorized(() => {
-      TwitchExt.listen('broadcast', (t, ct, msg) => {
-        try {
-          const d = JSON.parse(msg);
-          if (d.type === 'command') {
-            count++;
-            const e = EMOJIS[d.cmd] || '❓';
-            lastCmd.textContent = e + ' ' + d.cmd.toUpperCase();
-            lastCmd.style.animation = 'none';
-            void lastCmd.offsetWidth;
-            lastCmd.style.animation = '';
-            counter.textContent = count + ' comando' + (count !== 1 ? 's' : '') + ' usados';
-          }
-        } catch(e) {}
-      });
-    });
-  </script>
+  <script src="js/video-component.js"></script>
 </body>
 </html>

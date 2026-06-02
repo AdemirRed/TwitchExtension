@@ -1,0 +1,17 @@
+{
+  "author_name": "ExplorarLocais",
+  "description": "ExplorarLocais Bot para Twitch",
+  "name": "ExplorarLocais Bot",
+  "version": "0.0.1",
+  "views": {
+    "panel": {
+      "viewer_url": "panel.html"
+    },
+    "mobile": {
+      "viewer_url": "mobile.html"
+    },
+    "config": {
+      "viewer_url": "config.html"
+    }
+  }
+}
