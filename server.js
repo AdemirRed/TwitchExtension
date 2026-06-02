@@ -446,6 +446,26 @@ tr:last-child td{border-bottom:none}
     ${rowsExtra}
   </table>` : ''}
 </div>
+
+<!-- Banner ExplorarLocais -->
+<div style="background:linear-gradient(135deg,#1a0a2e,#0a1a2e);border-top:1px solid #2a2a2d;padding:28px 16px;margin-top:32px">
+  <div style="max-width:800px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:14px">
+      <div style="width:42px;height:42px;background:#9147ff;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🗺️</div>
+      <div>
+        <div style="font-size:15px;font-weight:800;color:#efeff1">ExplorarLocais</div>
+        <div style="font-size:12px;color:#adadb8">Descubra os melhores pontos turísticos do Brasil</div>
+      </div>
+    </div>
+    <a href="https://explorarlocais.com.br/" target="_blank" rel="noopener"
+       style="background:#9147ff;color:#fff;border-radius:8px;padding:10px 24px;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0">
+      Explorar agora →
+    </a>
+  </div>
+</div>
+<div style="text-align:center;padding:16px;font-size:11px;color:#3a3a3d">
+  Powered by <a href="${BASE_URL}" style="color:#9147ff;text-decoration:none">ExplorarBot</a>
+</div>
 </body></html>`);
 });
 
