@@ -548,8 +548,44 @@ app.get('/api/c/:login', async (req, res) => {
   const streamers = await db.getActiveStreamers();
   const streamer  = streamers.find(s => s.login.toLowerCase() === login);
   if (!streamer) return res.json(null);
-  const settings = await db.getSettings(streamer.twitch_id);
   res.json({ ok: true, url: `${BASE_URL}/c/${login}` });
+});
+
+// API pública de comandos por twitch_id (usada pela EXTENSÃO no painel)
+// CORS liberado pois é chamada do iframe da Twitch
+app.get('/api/extension/:twitchId/commands', async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  const twitchId = req.params.twitchId;
+  try {
+    const streamer = await db.getStreamer(twitchId);
+    if (!streamer || !streamer.active) return res.json({ ok: false, commands: [] });
+
+    const settings = await db.getSettings(twitchId);
+    const lista = [];
+
+    // Comandos customizados ativos
+    for (const [cmd, cfg] of Object.entries(settings.commands || {})) {
+      if (cfg.enabled) {
+        lista.push({
+          cmd,
+          emoji: cfg.emoji || '💬',
+          desc: (cfg.mensagens?.[0] || '').replace(/\{usuario\}/g, '@você').replace(/\{alvo\}/g, '@alvo').slice(0, 50),
+          perm: cfg.permissao || 'todos',
+        });
+      }
+    }
+    // Comandos especiais ativos
+    if (settings.pix?.enabled && settings.pix?.chave) lista.push({ cmd:'!pix', emoji:'💸', desc:'Chave Pix do streamer', perm:'todos' });
+    if (settings.stream?.uptime_enabled)      lista.push({ cmd:'!uptime', emoji:'⏰', desc:'Tempo de live', perm:'todos' });
+    if (settings.stream?.clip_enabled)        lista.push({ cmd:'!clip', emoji:'🎬', desc:'Cria um clip', perm:'todos' });
+    if (settings.social?.discord)             lista.push({ cmd:'!discord', emoji:'💬', desc:'Link do Discord', perm:'todos' });
+    if (settings.social?.instagram)           lista.push({ cmd:'!instagram', emoji:'📸', desc:'Instagram', perm:'todos' });
+    if (settings.social?.youtube)             lista.push({ cmd:'!youtube', emoji:'▶️', desc:'YouTube', perm:'todos' });
+
+    res.json({ ok: true, canal: streamer.display_name || streamer.login, commands: lista });
+  } catch (e) {
+    res.json({ ok: false, commands: [] });
+  }
 });
 
 // ── Health check + self-ping ──────────────────────────────────────────────────

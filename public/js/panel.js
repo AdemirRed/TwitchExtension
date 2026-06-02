@@ -1,57 +1,46 @@
-// Comandos disponíveis (sync com config.js)
-const COMMANDS = {
-  '!hidrate':  { emoji: '💧', label: 'HIDRATE!',    color: '#1da1f2' },
-  '!alongar':  { emoji: '🧘', label: 'ALONGAR!',    color: '#43b581' },
-  '!skill':    { emoji: '💀', label: 'SKILL ISSO!', color: '#f04747' },
-  '!lurk':     { emoji: '👻', label: 'LURK MODE',   color: '#747f8d' },
-  '!hype':     { emoji: '🔥', label: 'HYPE!',       color: '#f4a020' },
-};
+// Painel da extensão — busca a lista de comandos do canal no backend e exibe.
+const BACKEND = 'https://explorarbot.up.railway.app';
 
-const MAX_ITEMS = 8;
-let history = [];
+const PERM_LABEL = { todos:'Todos', subs:'Subs', vip:'VIP', mods:'Mods', broadcaster:'Streamer' };
 
-function renderList() {
+function renderLista(comandos) {
   const list = document.getElementById('command-list');
-  if (history.length === 0) {
-    list.innerHTML = '<p class="no-commands">Nenhum comando ainda...<br>Use os comandos no chat!</p>';
+  if (!comandos || comandos.length === 0) {
+    list.innerHTML = '<p class="no-commands">Este canal ainda não configurou comandos.<br>Volte em breve! 👀</p>';
     return;
   }
-  list.innerHTML = history.slice().reverse().map(item => `
-    <div class="command-item" style="border-left-color: ${item.color}">
-      <span class="cmd-name">${item.emoji} ${item.cmd}</span>
-      <span class="cmd-user">${item.user}</span>
+  list.innerHTML = comandos.map(c => `
+    <div class="command-item">
+      <span class="cmd-name">${c.emoji} ${c.cmd}</span>
+      <span class="cmd-user">${c.desc || PERM_LABEL[c.perm] || ''}</span>
     </div>
   `).join('');
 }
 
-function addCommand(cmd, user) {
-  const info = COMMANDS[cmd] || { emoji: '❓', label: cmd, color: '#9147ff' };
-  history.push({ cmd, user, emoji: info.emoji, color: info.color, ts: Date.now() });
-  if (history.length > MAX_ITEMS) history.shift();
-  renderList();
-}
-
-// PubSub: recebe eventos do streamer
-TwitchExt.onAuthorized(() => {
-  TwitchExt.listen('broadcast', (target, contentType, msg) => {
-    try {
-      const data = JSON.parse(msg);
-      if (data.type === 'command') {
-        addCommand(data.cmd, data.user);
+function carregar(channelId) {
+  fetch(`${BACKEND}/api/extension/${channelId}/commands`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        const h = document.querySelector('.panel-header h2');
+        if (h && data.canal) h.textContent = 'Comandos · ' + data.canal;
+        renderLista(data.commands);
+      } else {
+        renderLista([]);
       }
-    } catch (e) { /* ignora mensagens inválidas */ }
-  });
-});
-
-// Botões de teste em modo local
-if (TwitchExt.isLocal) {
-  document.getElementById('dev-tools').style.display = 'block';
-  Object.keys(COMMANDS).forEach(cmd => {
-    const btn = document.createElement('button');
-    btn.textContent = cmd;
-    btn.onclick = () => addCommand(cmd, 'dev_user');
-    document.getElementById('dev-buttons').appendChild(btn);
-  });
+    })
+    .catch(() => {
+      document.getElementById('command-list').innerHTML =
+        '<p class="no-commands">Não foi possível carregar os comandos.</p>';
+    });
 }
 
-renderList();
+// Pega o ID do canal via Twitch helper
+if (window.Twitch && window.Twitch.ext) {
+  window.Twitch.ext.onAuthorized((auth) => {
+    carregar(auth.channelId);
+  });
+} else {
+  // Dev local
+  carregar('131509204');
+}
