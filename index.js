@@ -22,7 +22,7 @@ console.log('============================\n');
 
 const db  = require('./db');
 const bot = require('./bot');
-const { app, PORT, iniciarSelfPing } = require('./server');
+const { app, PORT, iniciarSelfPing, iniciarJobCobranca } = require('./server');
 
 async function main() {
   await db.init();
@@ -34,6 +34,7 @@ async function main() {
   });
 
   iniciarSelfPing();
+  iniciarJobCobranca();
 
   // Bot do Twitch sobe separado — se o token estiver expirado/inválido,
   // o app continua de pé e os streamers ainda conseguem logar e configurar.

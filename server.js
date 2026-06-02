@@ -10,6 +10,7 @@ const db        = require('./db');
 const bot       = require('./bot');
 const cmd       = require('./commands');
 const asaas     = require('./asaas');
+const mailer    = require('./mailer');
 
 const app        = express();
 const PORT       = process.env.PORT || 8080;
@@ -304,63 +305,69 @@ app.get('/premium', autenticado, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'premium.html'));
 });
 
-app.post('/api/premium/checkout', autenticadoAPI, async (req, res) => {
-  const { nome, cpf } = req.body;
-  const { twitch_id, login, display_name } = req.session.streamer;
+// Retorna os preços (para o frontend exibir)
+app.get('/api/premium/precos', (req, res) => {
+  res.json({ mensal: asaas.PRECO_MENSAL, vitalicio: asaas.PRECO_VITALICIO });
+});
 
-  if (!nome || !cpf) return res.json({ ok: false, erro: 'Nome e CPF são obrigatórios.' });
+app.post('/api/premium/checkout', autenticadoAPI, async (req, res) => {
+  const { nome, cpf, email, plano } = req.body;
+  const { twitch_id } = req.session.streamer;
+
+  if (!nome || !cpf || !email) return res.json({ ok: false, erro: 'Nome, CPF e e-mail são obrigatórios.' });
+  if (!['mensal', 'vitalicio'].includes(plano)) return res.json({ ok: false, erro: 'Plano inválido.' });
 
   try {
-    // Verifica se já é premium
     if (await db.isPremium(twitch_id)) {
       return res.json({ ok: false, erro: 'Você já possui Premium ativo!' });
     }
 
-    // Recupera ou cria cliente no Asaas
-    const streamer   = await db.getStreamer(twitch_id);
-    let clienteId    = streamer.asaas_customer_id;
+    // Salva e-mail do streamer para lembretes
+    await db.salvarEmailStreamer(twitch_id, email);
 
+    // Cria/recupera cliente no Asaas
+    const streamer = await db.getStreamer(twitch_id);
+    let clienteId  = streamer.asaas_customer_id;
     if (!clienteId) {
-      const cliente = await asaas.upsertCliente({ nome, cpf, email: null });
+      const cliente = await asaas.upsertCliente({ nome, cpf, email });
       if (cliente.errors) return res.json({ ok: false, erro: cliente.errors[0]?.description || 'Erro ao criar cliente.' });
       clienteId = cliente.id;
       await db.salvarAsaasCliente(twitch_id, clienteId);
     }
 
-    // Cria cobrança PIX
-    const cobranca = await asaas.criarCobrancaPix({
-      clienteId,
-      twitchId:    twitch_id,
-      twitchLogin: login,
-      valor:       process.env.PREMIUM_PRECO || '9.00',
-    });
-
-    if (cobranca.errors || !cobranca.id) {
-      return res.json({ ok: false, erro: cobranca.errors?.[0]?.description || 'Erro ao criar cobrança.' });
+    if (plano === 'vitalicio') {
+      const cobranca = await asaas.criarCobrancaVitalicio({ clienteId, twitchId: twitch_id });
+      if (cobranca.errors || !cobranca.id) {
+        return res.json({ ok: false, erro: cobranca.errors?.[0]?.description || 'Erro ao criar cobrança.' });
+      }
+      // invoiceUrl = página do Asaas onde escolhe pix/cartão/boleto
+      return res.json({ ok: true, redirect: cobranca.invoiceUrl });
     }
 
-    // Busca QR code
-    const pix = await asaas.getPixQrCode(cobranca.id);
+    // mensal — assinatura recorrente
+    const assinatura = await asaas.criarAssinaturaMensal({ clienteId, twitchId: twitch_id });
+    if (assinatura.errors || !assinatura.id) {
+      return res.json({ ok: false, erro: assinatura.errors?.[0]?.description || 'Erro ao criar assinatura.' });
+    }
+    await db.salvarAssinatura(twitch_id, assinatura.id);
 
-    res.json({
-      ok: true,
-      paymentId:   cobranca.id,
-      qrCode:      pix.encodedImage,   // base64 da imagem
-      copyCola:    pix.payload,         // texto para copiar
-      valor:       cobranca.value,
-      vencimento:  cobranca.dueDate,
-    });
+    // Pega a 1ª cobrança para mandar o cliente pagar
+    const primeira = await asaas.getPrimeiraCobrancaAssinatura(assinatura.id);
+    return res.json({ ok: true, redirect: primeira?.invoiceUrl || `https://www.asaas.com` });
+
   } catch (e) {
     console.error('[premium/checkout]', e);
     res.json({ ok: false, erro: 'Erro interno. Tente novamente.' });
   }
 });
 
-// Verifica status do pagamento (polling do frontend)
-app.get('/api/premium/status/:paymentId', autenticadoAPI, async (req, res) => {
-  const payment = await asaas.getPayment(req.params.paymentId);
-  const pago    = ['CONFIRMED', 'RECEIVED'].includes(payment.status);
-  res.json({ pago, status: payment.status });
+// Cancelar assinatura mensal
+app.post('/api/premium/cancelar', autenticadoAPI, async (req, res) => {
+  const streamer = await db.getStreamer(req.session.streamer.twitch_id);
+  if (streamer.asaas_subscription_id) {
+    await asaas.cancelarAssinatura(streamer.asaas_subscription_id);
+  }
+  res.json({ ok: true, nota: 'Assinatura cancelada. O Premium continua até o fim do período pago.' });
 });
 
 // ── Webhook Asaas ─────────────────────────────────────────────────────────────
@@ -374,9 +381,19 @@ app.post('/webhooks/asaas', express.json(), async (req, res) => {
   const { event, payment } = req.body;
 
   if (['PAYMENT_CONFIRMED', 'PAYMENT_RECEIVED'].includes(event) && payment?.externalReference) {
-    const twitchId = payment.externalReference;
-    await db.ativarPremium(twitchId, 1);
-    console.log(`[Premium] Ativado para twitch_id: ${twitchId} via webhook Asaas`);
+    // externalReference = "twitchId:plano"
+    const [twitchId, plano] = payment.externalReference.split(':');
+    await db.ativarPremium(twitchId, plano || 'mensal');
+    console.log(`[Premium] Ativado (${plano}) para ${twitchId} via Asaas`);
+
+    // E-mail de confirmação
+    const streamer = await db.getStreamer(twitchId);
+    if (streamer?.email) {
+      mailer.confirmacaoAssinatura(streamer.email, {
+        plano: plano || 'mensal',
+        expira: streamer.premium_expires_at,
+      });
+    }
   }
 
   res.json({ ok: true });
@@ -524,6 +541,37 @@ function iniciarSelfPing() {
   }, 9 * 60 * 1000);
 }
 
+// ── Job diário: lembretes de cobrança + expiração ─────────────────────────────
+function iniciarJobCobranca() {
+  const rodar = async () => {
+    try {
+      // Lembretes: mensais vencendo em 3 dias
+      const vencendo = await db.premiumVencendo(3);
+      for (const s of vencendo) {
+        if (s.email) {
+          await mailer.lembreteCobranca(s.email, {
+            valor: asaas.PRECO_MENSAL,
+            vencimento: s.premium_expires_at,
+            invoiceUrl: `${BASE_URL}/premium`,
+          });
+          await db.marcarLembreteEnviado(s.twitch_id);
+        }
+      }
+      // Expirados: desativa premium e avisa
+      const expirados = await db.premiumExpirados();
+      for (const s of expirados) {
+        await db.desativarPremium(s.twitch_id);
+        if (s.email) await mailer.premiumExpirado(s.email);
+        console.log(`[Premium] Expirou para ${s.login}`);
+      }
+    } catch (e) {
+      console.error('[job cobranca] erro:', e.message);
+    }
+  };
+  rodar(); // roda uma vez no boot
+  setInterval(rodar, 12 * 60 * 60 * 1000); // a cada 12h
+}
+
 // ── Inicialização ─────────────────────────────────────────────────────────────
 
-module.exports = { app, PORT, iniciarSelfPing };
+module.exports = { app, PORT, iniciarSelfPing, iniciarJobCobranca };

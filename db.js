@@ -32,6 +32,10 @@ async function init() {
   await q(`ALTER TABLE streamers ADD COLUMN IF NOT EXISTS premium BOOLEAN DEFAULT false`).catch(()=>{});
   await q(`ALTER TABLE streamers ADD COLUMN IF NOT EXISTS premium_expires_at TIMESTAMP DEFAULT NULL`).catch(()=>{});
   await q(`ALTER TABLE streamers ADD COLUMN IF NOT EXISTS asaas_customer_id VARCHAR(100) DEFAULT NULL`).catch(()=>{});
+  await q(`ALTER TABLE streamers ADD COLUMN IF NOT EXISTS plano VARCHAR(20) DEFAULT NULL`).catch(()=>{});
+  await q(`ALTER TABLE streamers ADD COLUMN IF NOT EXISTS asaas_subscription_id VARCHAR(100) DEFAULT NULL`).catch(()=>{});
+  await q(`ALTER TABLE streamers ADD COLUMN IF NOT EXISTS email VARCHAR(200) DEFAULT NULL`).catch(()=>{});
+  await q(`ALTER TABLE streamers ADD COLUMN IF NOT EXISTS lembrete_enviado BOOLEAN DEFAULT false`).catch(()=>{});
   await q(`
     CREATE TABLE IF NOT EXISTS channel_settings (
       twitch_id  VARCHAR(50) PRIMARY KEY REFERENCES streamers(twitch_id) ON DELETE CASCADE,
@@ -146,15 +150,25 @@ async function getRecentLog(twitch_id, limit = 100) {
   return r.rows.reverse();
 }
 
-async function ativarPremium(twitch_id, meses = 1) {
-  // Se já tem premium ativo, soma mais 1 mês; senão começa do hoje
+// Ativa premium conforme o plano:
+//  - vitalicio: nunca expira (premium_expires_at = NULL)
+//  - mensal: soma 1 mês a partir do maior entre hoje e expiração atual
+async function ativarPremium(twitch_id, plano = 'mensal') {
+  if (plano === 'vitalicio') {
+    await q(
+      `UPDATE streamers SET premium=true, premium_expires_at=NULL, plano='vitalicio', lembrete_enviado=false WHERE twitch_id=$1`,
+      [twitch_id]
+    );
+    return;
+  }
+  // mensal
   const atual = await getStreamer(twitch_id);
   const base  = atual?.premium_expires_at && new Date(atual.premium_expires_at) > new Date()
     ? new Date(atual.premium_expires_at)
     : new Date();
-  base.setMonth(base.getMonth() + meses);
+  base.setMonth(base.getMonth() + 1);
   await q(
-    `UPDATE streamers SET premium=true, premium_expires_at=$2 WHERE twitch_id=$1`,
+    `UPDATE streamers SET premium=true, premium_expires_at=$2, plano='mensal', lembrete_enviado=false WHERE twitch_id=$1`,
     [twitch_id, base]
   );
 }
@@ -163,12 +177,50 @@ async function salvarAsaasCliente(twitch_id, asaas_customer_id) {
   await q(`UPDATE streamers SET asaas_customer_id=$2 WHERE twitch_id=$1`, [twitch_id, asaas_customer_id]);
 }
 
+async function salvarAssinatura(twitch_id, subscription_id) {
+  await q(`UPDATE streamers SET asaas_subscription_id=$2 WHERE twitch_id=$1`, [twitch_id, subscription_id]);
+}
+
+async function salvarEmailStreamer(twitch_id, email) {
+  await q(`UPDATE streamers SET email=$2 WHERE twitch_id=$1`, [twitch_id, email]);
+}
+
 async function isPremium(twitch_id) {
   const r = await q(`SELECT premium, premium_expires_at FROM streamers WHERE twitch_id=$1`, [twitch_id]);
   const s = r.rows[0];
   if (!s?.premium) return false;
-  if (!s.premium_expires_at) return true;
+  if (!s.premium_expires_at) return true; // vitalício
   return new Date(s.premium_expires_at) > new Date();
+}
+
+// Streamers mensais cujo premium vence em N dias (para lembrete) e ainda não notificados
+async function premiumVencendo(dias = 3) {
+  const r = await q(`
+    SELECT * FROM streamers
+    WHERE premium=true AND plano='mensal'
+      AND premium_expires_at IS NOT NULL
+      AND premium_expires_at <= NOW() + INTERVAL '${dias} days'
+      AND premium_expires_at > NOW()
+      AND lembrete_enviado=false
+  `);
+  return r.rows.map(decryptStreamer);
+}
+
+// Streamers cujo premium já expirou mas ainda está marcado como premium
+async function premiumExpirados() {
+  const r = await q(`
+    SELECT * FROM streamers
+    WHERE premium=true AND premium_expires_at IS NOT NULL AND premium_expires_at < NOW()
+  `);
+  return r.rows.map(decryptStreamer);
+}
+
+async function marcarLembreteEnviado(twitch_id) {
+  await q(`UPDATE streamers SET lembrete_enviado=true WHERE twitch_id=$1`, [twitch_id]);
+}
+
+async function desativarPremium(twitch_id) {
+  await q(`UPDATE streamers SET premium=false WHERE twitch_id=$1`, [twitch_id]);
 }
 
 async function ping() {
@@ -179,7 +231,8 @@ module.exports = {
   init, upsertStreamer, getStreamer, getActiveStreamers,
   deactivateStreamer, getSettings, saveSettings,
   logCommand, getRecentLog,
-  ativarPremium, salvarAsaasCliente, isPremium,
+  ativarPremium, salvarAsaasCliente, salvarAssinatura, salvarEmailStreamer, isPremium,
+  premiumVencendo, premiumExpirados, marcarLembreteEnviado, desativarPremium,
   getConfig, setConfig,
   ping,
 };
