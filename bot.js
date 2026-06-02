@@ -211,6 +211,36 @@ async function start() {
   // 4. Renova o token a cada 3h e reconecta com o novo
   if (refreshTimer) clearInterval(refreshTimer);
   refreshTimer = setInterval(reconectarComTokenNovo, 3 * 60 * 60 * 1000);
+
+  // 5. ADS horária nos canais NÃO-premium
+  iniciarAds();
+}
+
+// ── ADS automática (a cada 1h, só em canais não-premium) ──────────────────────
+const ADS = [
+  '📢 Curtiu o bot? Adicione no seu canal de graça: https://explorarbot.up.railway.app',
+  '🗺️ Conheça o ExplorarLocais — descubra os melhores pontos turísticos do Brasil: https://explorarlocais.com.br',
+];
+let adsTimer = null;
+let adsIndex = 0;
+
+function iniciarAds() {
+  if (adsTimer) clearInterval(adsTimer);
+  // A cada 1 hora
+  adsTimer = setInterval(async () => {
+    try {
+      const streamers = await db.getActiveStreamers();
+      const msg = ADS[adsIndex % ADS.length];
+      adsIndex++;
+      for (const s of streamers) {
+        // Assinantes premium não recebem ADS
+        if (await db.isPremium(s.twitch_id)) continue;
+        try { if (client) await client.say(`#${s.login}`, msg); } catch {}
+      }
+    } catch (e) {
+      console.error('[ADS] erro:', e.message);
+    }
+  }, 60 * 60 * 1000);
 }
 
 async function reconectarComTokenNovo() {

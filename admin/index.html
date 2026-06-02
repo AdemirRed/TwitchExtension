@@ -160,7 +160,7 @@
 <header>
   <div class="logo">🎮 Bot Admin</div>
   <div class="badge" id="channelBadge">...</div>
-  <div class="badge" id="uptimeBadge">⏱ Carregando...</div>
+  <div class="badge" id="premiumBadge" title="Seu plano">...</div>
   <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
     <a id="linkComandos" href="#" target="_blank" class="badge" style="color:var(--purple);border-color:var(--purple);cursor:pointer;text-decoration:none" title="Ver página pública de comandos">🔗 Meus comandos</a>
     <a href="/sair" class="badge" style="cursor:pointer;text-decoration:none" title="Sair da conta">Sair</a>
@@ -412,6 +412,14 @@
 
 <!-- ── ABA ENQUETES ────────────────────────────────────────────────── -->
 <div class="page" id="tab-enquetes">
+
+  <div id="premium-banner-enquetes" style="display:none;background:linear-gradient(135deg,#1a0a2e,#2d1060);border:1px solid var(--purple);border-radius:10px;padding:16px 20px;margin-bottom:20px;align-items:center;justify-content:space-between;gap:16px">
+    <div>
+      <div style="font-weight:800;font-size:14px">🔒 Enquetes e Predições são recursos Premium</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px">Assine por R$9/mês e crie enquetes com pontos do canal e predições.</div>
+    </div>
+    <a href="/premium" class="btn btn-primary" style="text-decoration:none">⭐ Assinar Premium</a>
+  </div>
 
   <div class="grid2">
 
@@ -684,6 +692,37 @@ async function carregarSettings() {
   renderCmds();
   document.getElementById('channelBadge').textContent = '#' + (S.channel || 'universo_redblack');
   document.getElementById('cooldownGlobal').value = (S.cooldown_ms || 10000) / 1000;
+  carregarPremium();
+}
+
+// ── Status Premium ────────────────────────────────────────────────────────────
+let ehPremium = false;
+const CMDS_PADRAO = ['!leitar','!hidrate','!alongar','!skill','!hype','!lurk'];
+const LIMITE_FREE = 5;
+
+async function carregarPremium() {
+  try {
+    const p = await fetch('/api/me/premium').then(r => r.json());
+    ehPremium = !!p.premium;
+  } catch { ehPremium = false; }
+
+  const badge = document.getElementById('premiumBadge');
+  if (badge) {
+    if (ehPremium) {
+      badge.textContent = '⭐ Premium';
+      badge.style.background = 'linear-gradient(135deg,#f4a020,#ff79c6)';
+      badge.style.color = '#fff';
+      badge.style.borderColor = 'transparent';
+    } else {
+      badge.textContent = '☕ Grátis — Assinar';
+      badge.style.cursor = 'pointer';
+      badge.onclick = () => window.location.href = '/premium';
+    }
+  }
+
+  // Banner de upsell na aba Enquetes (só para grátis)
+  const bannerEnq = document.getElementById('premium-banner-enquetes');
+  if (bannerEnq) bannerEnq.style.display = ehPremium ? 'none' : 'flex';
 }
 
 function aplicarSettings() {
@@ -706,7 +745,13 @@ async function salvarSettings() {
     body: JSON.stringify(S)
   });
   if (res.status === 401) { checkAuth(); return; }
+  if (res.status === 403) {
+    const d = await res.json();
+    showToast(d.erro || 'Recurso Premium.', 'error');
+    return false;
+  }
   showToast('Salvo!');
+  return true;
 }
 
 async function salvarCooldownGlobal() {
@@ -803,9 +848,22 @@ async function addCmd() {
   const rawMsg  = document.getElementById('newMsg').value.trim();
   if (!cmd.startsWith('!')) { showToast('O comando deve começar com !', 'error'); return; }
   if (!rawMsg) { showToast('Escreva pelo menos uma mensagem', 'error'); return; }
+
+  // Checagem de limite do plano grátis (o servidor também valida)
+  if (!ehPremium && !S.commands[cmd]) {
+    const custom = Object.keys(S.commands || {}).filter(c => !CMDS_PADRAO.includes(c));
+    if (custom.length >= LIMITE_FREE) {
+      if (confirm(`Plano grátis permite até ${LIMITE_FREE} comandos customizados.\n\nQuer assinar o Premium para criar ilimitados?`)) {
+        window.location.href = '/premium';
+      }
+      return;
+    }
+  }
+
   const mensagens = rawMsg.split(/\n\n+/).map(s => s.trim()).filter(Boolean);
   S.commands[cmd] = { enabled: true, emoji, permissao: perm, cooldown_ms: cooldown, mensagens };
-  await salvarSettings();
+  const ok = await salvarSettings();
+  if (ok === false) { delete S.commands[cmd]; return; }
   limparForm();
   renderCmds();
 }

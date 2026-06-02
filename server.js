@@ -186,9 +186,29 @@ app.get('/api/settings', autenticadoAPI, async (req, res) => {
   res.json(s);
 });
 
+// Comandos que vêm por padrão (não contam como "customizados")
+const CMDS_PADRAO = ['!leitar','!hidrate','!alongar','!skill','!hype','!lurk'];
+const LIMITE_CUSTOM_FREE = 5;
+
 app.post('/api/settings', autenticadoAPI, async (req, res) => {
-  await db.saveSettings(req.session.streamer.twitch_id, req.body);
-  bot.invalidateCache(req.session.streamer.twitch_id);
+  const twitchId = req.session.streamer.twitch_id;
+  const premium  = await db.isPremium(twitchId);
+  const novo     = req.body;
+
+  // Gating do plano grátis: máximo de comandos customizados
+  if (!premium) {
+    const custom = Object.keys(novo.commands || {}).filter(c => !CMDS_PADRAO.includes(c));
+    if (custom.length > LIMITE_CUSTOM_FREE) {
+      return res.status(403).json({
+        ok: false,
+        erro: `Plano grátis permite até ${LIMITE_CUSTOM_FREE} comandos customizados. Você tem ${custom.length}. Assine o Premium para ilimitados.`,
+        premium_required: true,
+      });
+    }
+  }
+
+  await db.saveSettings(twitchId, novo);
+  bot.invalidateCache(twitchId);
   res.json({ ok: true });
 });
 
@@ -220,9 +240,15 @@ app.post('/api/test-cmd', autenticadoAPI, async (req, res) => {
   }
 });
 
-// ── API Polls ─────────────────────────────────────────────────────────────────
+// Middleware: bloqueia recurso premium para plano grátis
+async function exigePremium(req, res, next) {
+  if (await db.isPremium(req.session.streamer.twitch_id)) return next();
+  res.status(403).json({ ok: false, premium_required: true, erro: 'Recurso exclusivo do Premium. Assine para usar enquetes e predições.' });
+}
 
-app.post('/api/poll', autenticadoAPI, async (req, res) => {
+// ── API Polls (Premium) ───────────────────────────────────────────────────────
+
+app.post('/api/poll', autenticadoAPI, exigePremium, async (req, res) => {
   const { twitch_id, access_token } = await db.getStreamer(req.session.streamer.twitch_id);
   const { titulo, opcoes, duracao, usaPontos, pontos } = req.body;
   const body = {
@@ -250,7 +276,7 @@ app.delete('/api/poll/:id', autenticadoAPI, async (req, res) => {
 
 const predicaoOutcomes = new Map();
 
-app.post('/api/prediction', autenticadoAPI, async (req, res) => {
+app.post('/api/prediction', autenticadoAPI, exigePremium, async (req, res) => {
   const { twitch_id, access_token } = await db.getStreamer(req.session.streamer.twitch_id);
   const { titulo, azul, rosa, duracao } = req.body;
   const data = await cmd.twitchAPI('POST', '/predictions', {
