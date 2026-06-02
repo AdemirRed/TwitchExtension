@@ -2,88 +2,50 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Configurações da Extensão</title>
-  <link rel="stylesheet" href="css/style.css">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Configurar ExplorarBot</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',system-ui,Arial,sans-serif;background:#0e0e10;color:#efeff1;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+    .box{max-width:480px;text-align:center}
+    .logo{width:64px;height:64px;background:#9147ff;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 20px}
+    h1{font-size:22px;font-weight:800;margin-bottom:10px}
+    p{font-size:14px;color:#adadb8;line-height:1.6;margin-bottom:24px}
+    .steps{text-align:left;background:#18181b;border:1px solid #2a2a2d;border-radius:12px;padding:20px;margin-bottom:24px}
+    .step{display:flex;gap:12px;align-items:flex-start;padding:8px 0}
+    .num{flex-shrink:0;width:24px;height:24px;background:#9147ff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
+    .step-txt{font-size:13px;color:#adadb8;padding-top:2px}
+    .btn{background:#9147ff;color:#fff;border:none;border-radius:8px;padding:14px 32px;font-size:15px;font-weight:800;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px;transition:.2s}
+    .btn:hover{background:#772ce8}
+    .small{font-size:12px;color:#5a5a64;margin-top:16px}
+  </style>
 </head>
 <body>
-  <div class="config-container">
-    <h1>⚙️ Configurações</h1>
-    <p class="subtitle">Personalize os comandos e efeitos da extensão no seu canal.</p>
+  <div class="box">
+    <div class="logo">🎮</div>
+    <h1>Configure o ExplorarBot</h1>
+    <p>Toda a configuração — comandos, moderação, enquetes e mais — é feita no painel completo do ExplorarBot.</p>
 
-    <div class="section">
-      <h3>Comandos ativos</h3>
-
-      <div class="toggle-row">
-        <span>💧 !hidrate — Lembrete de hidratação</span>
-        <label class="toggle">
-          <input type="checkbox" id="cmd_hidrate" data-setting="cmd_hidrate" checked>
-          <span class="slider"></span>
-        </label>
+    <div class="steps">
+      <div class="step">
+        <div class="num">1</div>
+        <div class="step-txt">Clique no botão abaixo para abrir o painel</div>
       </div>
-
-      <div class="toggle-row">
-        <span>🧘 !alongar — Lembrete de alongamento</span>
-        <label class="toggle">
-          <input type="checkbox" id="cmd_alongar" data-setting="cmd_alongar" checked>
-          <span class="slider"></span>
-        </label>
+      <div class="step">
+        <div class="num">2</div>
+        <div class="step-txt">Entre com sua conta da Twitch (login rápido e seguro)</div>
       </div>
-
-      <div class="toggle-row">
-        <span>💀 !skill — Culpar a skill</span>
-        <label class="toggle">
-          <input type="checkbox" id="cmd_skill" data-setting="cmd_skill" checked>
-          <span class="slider"></span>
-        </label>
-      </div>
-
-      <div class="toggle-row">
-        <span>👻 !lurk — Modo lurk</span>
-        <label class="toggle">
-          <input type="checkbox" id="cmd_lurk" data-setting="cmd_lurk" checked>
-          <span class="slider"></span>
-        </label>
-      </div>
-
-      <div class="toggle-row">
-        <span>🔥 !hype — Hype com confetti</span>
-        <label class="toggle">
-          <input type="checkbox" id="cmd_hype" data-setting="cmd_hype" checked>
-          <span class="slider"></span>
-        </label>
+      <div class="step">
+        <div class="num">3</div>
+        <div class="step-txt">Ative comandos, crie zoeiras e o bot entra no seu canal automaticamente</div>
       </div>
     </div>
 
-    <div class="section">
-      <h3>Efeitos visuais</h3>
-      <div class="toggle-row">
-        <span>Mostrar overlay de efeitos no vídeo</span>
-        <label class="toggle">
-          <input type="checkbox" id="overlay_efeitos" data-setting="overlay_efeitos" checked>
-          <span class="slider"></span>
-        </label>
-      </div>
-    </div>
+    <a class="btn" href="https://explorarbot.up.railway.app/painel" target="_blank" rel="noopener">
+      ⚙️ Abrir painel de configuração
+    </a>
 
-    <div class="section">
-      <h3>Cooldown</h3>
-      <div class="toggle-row">
-        <span>Cooldown por comando (segundos)</span>
-        <input
-          id="cooldown_segundos"
-          data-setting="cooldown_segundos"
-          type="number" min="0" max="300" value="30"
-          style="width:60px; background:#2a2a2d; border:1px solid #3a3a3d; color:#efeff1; border-radius:4px; padding:4px 8px; font-size:13px; text-align:center;"
-        >
-      </div>
-    </div>
-
-    <button class="save-btn" id="save-btn">Salvar configurações</button>
+    <p class="small">O painel abre em uma nova aba. Após configurar, volte aqui e ative a extensão.</p>
   </div>
-
-  <script src="https://extension-files.twitch.tv/helper/v1/twitch-ext.min.js"></script>
-  <script src="js/twitch-ext.js"></script>
-  <script src="js/config.js"></script>
 </body>
 </html>
