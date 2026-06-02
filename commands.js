@@ -185,7 +185,13 @@ async function handleUptime(say, broadcasterId, token, clientId) {
   say(`⏱ Live há ${h}h ${m}min`);
 }
 
-async function handleComandos(say, settings) {
+async function handleComandos(say, settings, login, baseUrl) {
+  // Se tiver URL base configurada, envia o link da página pública de comandos
+  if (baseUrl && login) {
+    say(`📋 Veja todos os comandos do canal: ${baseUrl}/c/${login}`);
+    return;
+  }
+  // Fallback: lista no chat
   const ativos = Object.entries(settings.commands || {})
     .filter(([, c]) => c.enabled).map(([cmd]) => cmd);
   const extras = [];
@@ -202,10 +208,19 @@ async function handleComandos(say, settings) {
 }
 
 function handleSocial(say, rede, settings) {
-  const url = settings.social?.[rede];
-  if (!url) return;
-  const icons = { discord:'💬', instagram:'📸', youtube:'▶️', twitter:'🐦' };
-  say(`${icons[rede]||'🔗'} ${rede.charAt(0).toUpperCase()+rede.slice(1)}: ${url}`);
+  const val = settings.social?.[rede];
+  if (!val) return;
+  const icons   = { discord:'💬', instagram:'📸', youtube:'▶️', twitter:'🐦' };
+  const labels  = { discord:'Discord', instagram:'Instagram', youtube:'YouTube', twitter:'Twitter/X' };
+  const prefixos = { discord:'discord.gg/', instagram:'instagram.com/', youtube:'youtube.com/@', twitter:'twitter.com/' };
+  // Aceita @handle, link completo ou só o nome
+  let exibir = val;
+  if (!val.startsWith('http') && !val.includes('.')) {
+    // só o handle ou @handle → formata como link
+    const handle = val.replace(/^@/, '');
+    exibir = `https://${prefixos[rede] || ''}${handle}`;
+  }
+  say(`${icons[rede]||'🔗'} ${labels[rede]||rede}: ${exibir}`);
 }
 
 module.exports = {

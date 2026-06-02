@@ -161,6 +161,11 @@
   <div class="logo">🎮 Bot Admin</div>
   <div class="badge" id="channelBadge">...</div>
   <div class="badge" id="uptimeBadge">⏱ Carregando...</div>
+  <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+    <a id="linkComandos" href="#" target="_blank" class="badge" style="color:var(--purple);border-color:var(--purple);cursor:pointer;text-decoration:none" title="Ver página pública de comandos">🔗 Meus comandos</a>
+    <a href="/sair" class="badge" style="cursor:pointer;text-decoration:none" title="Sair da conta">Sair</a>
+    <a href="/desconectar" class="badge" style="cursor:pointer;text-decoration:none;color:var(--red);border-color:var(--red)" title="Remove o bot do seu canal" onclick="return confirm('Desconectar o bot do seu canal?')">🔌 Desconectar bot</a>
+  </div>
   <div class="status-dot"></div>
 </header>
 
@@ -547,23 +552,23 @@
     <!-- Social -->
     <div class="card">
       <div class="card-title">🔗 Redes Sociais</div>
-      <p class="section-desc">Ative comandos como !discord !instagram !youtube !twitter no chat.</p>
+      <p class="section-desc">Aceita <b>@handle</b> ou link completo. Ex: <code>@Ademir_Red</code> ou <code>https://instagram.com/...</code></p>
       <div style="display:flex;flex-direction:column;gap:10px">
         <div class="form-group">
-          <label>💬 Discord (link de convite)</label>
-          <input type="url" data-path="social.discord" placeholder="https://discord.gg/...">
+          <label>💬 Discord</label>
+          <input type="text" data-path="social.discord" placeholder="@SeuServer ou discord.gg/codigo">
         </div>
         <div class="form-group">
           <label>📸 Instagram</label>
-          <input type="url" data-path="social.instagram" placeholder="https://instagram.com/...">
+          <input type="text" data-path="social.instagram" placeholder="@SeuUsuario">
         </div>
         <div class="form-group">
           <label>▶️ YouTube</label>
-          <input type="url" data-path="social.youtube" placeholder="https://youtube.com/...">
+          <input type="text" data-path="social.youtube" placeholder="@SeuCanal">
         </div>
         <div class="form-group">
           <label>🐦 Twitter/X</label>
-          <input type="url" data-path="social.twitter" placeholder="https://twitter.com/...">
+          <input type="text" data-path="social.twitter" placeholder="@SeuUser">
         </div>
       </div>
       <button class="btn btn-primary" style="margin-top:14px;width:100%" onclick="salvarSettings()">Salvar Redes</button>
@@ -640,8 +645,24 @@ document.querySelectorAll('.tab').forEach(tab => {
 });
 
 // ── Settings load/save ────────────────────────────────────────────────────────
+async function checkAuth() {
+  const me = await fetch('/api/me').then(r => r.json());
+  if (!me) {
+    // Sessão expirada — redireciona para login
+    showToast('Sessão expirada. Redirecionando para o login...', 'error');
+    setTimeout(() => window.location.href = '/entrar', 2000);
+    return false;
+  }
+  // Atualiza link público de comandos
+  const link = document.getElementById('linkComandos');
+  if (link) link.href = '/c/' + me.login;
+  return true;
+}
+
 async function carregarSettings() {
+  if (!(await checkAuth())) return;
   const res = await fetch('/api/settings');
+  if (res.status === 401) { checkAuth(); return; }
   S = await res.json();
   aplicarSettings();
   renderCmds();
@@ -663,11 +684,12 @@ function aplicarSettings() {
 }
 
 async function salvarSettings() {
-  await fetch('/api/settings', {
+  const res = await fetch('/api/settings', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify(S)
   });
+  if (res.status === 401) { checkAuth(); return; }
   showToast('Salvo!');
 }
 

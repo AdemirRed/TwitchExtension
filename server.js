@@ -149,7 +149,7 @@ app.get('/auth/callback', async (req, res) => {
   }
 });
 
-// Retorna dados do usuário logado (ou null se não logado) — usado pelo frontend
+// Retorna dados do usuário logado (ou null) — nunca redireciona, sempre JSON
 app.get('/api/me', (req, res) => {
   res.json(req.session?.streamer || null);
 });
@@ -173,22 +173,26 @@ app.get('/painel', autenticado, (req, res) => {
   res.sendFile(path.join(__dirname, 'admin', 'index.html'));
 });
 
+// Middleware que retorna JSON 401 em vez de redirecionar (para chamadas de API)
+function autenticadoAPI(req, res, next) {
+  if (req.session?.streamer) return next();
+  res.status(401).json({ erro: 'Não autenticado. Faça login novamente.' });
+}
+
 // ── API (requer autenticação) ─────────────────────────────────────────────────
 
-app.get('/api/me', autenticado, (req, res) => res.json(req.session.streamer));
-
-app.get('/api/settings', autenticado, async (req, res) => {
+app.get('/api/settings', autenticadoAPI, async (req, res) => {
   const s = await db.getSettings(req.session.streamer.twitch_id);
   res.json(s);
 });
 
-app.post('/api/settings', autenticado, async (req, res) => {
+app.post('/api/settings', autenticadoAPI, async (req, res) => {
   await db.saveSettings(req.session.streamer.twitch_id, req.body);
   bot.invalidateCache(req.session.streamer.twitch_id);
   res.json({ ok: true });
 });
 
-app.get('/api/log', autenticado, async (req, res) => {
+app.get('/api/log', autenticadoAPI, async (req, res) => {
   const { twitch_id } = req.session.streamer;
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -205,17 +209,20 @@ app.get('/api/log', autenticado, async (req, res) => {
   req.on('close', () => bot.removeLogListener(twitch_id, res));
 });
 
-app.post('/api/test-cmd', autenticado, (req, res) => {
+app.post('/api/test-cmd', autenticadoAPI, async (req, res) => {
   const { login } = req.session.streamer;
-  const fakeTags = { 'display-name': 'AdminTest', mod: true, badges: { broadcaster: '1' }, subscriber: true };
-  // Emite via tmi diretamente
-  require('./bot'); // já importado
-  res.json({ ok: true, nota: 'Use o chat diretamente para testar comandos' });
+  const { cmd: cmdMsg } = req.body;
+  try {
+    await bot.invocarComando(login, cmdMsg);
+    res.json({ ok: true });
+  } catch (e) {
+    res.json({ ok: false, erro: e.message });
+  }
 });
 
 // ── API Polls ─────────────────────────────────────────────────────────────────
 
-app.post('/api/poll', autenticado, async (req, res) => {
+app.post('/api/poll', autenticadoAPI, async (req, res) => {
   const { twitch_id, access_token } = await db.getStreamer(req.session.streamer.twitch_id);
   const { titulo, opcoes, duracao, usaPontos, pontos } = req.body;
   const body = {
@@ -227,13 +234,13 @@ app.post('/api/poll', autenticado, async (req, res) => {
   data.data?.[0] ? res.json({ ok: true, id: data.data[0].id }) : res.json({ ok: false, erro: JSON.stringify(data) });
 });
 
-app.get('/api/poll/:id', autenticado, async (req, res) => {
+app.get('/api/poll/:id', autenticadoAPI, async (req, res) => {
   const { twitch_id, access_token } = await db.getStreamer(req.session.streamer.twitch_id);
   const data = await cmd.twitchAPI('GET', `/polls?broadcaster_id=${twitch_id}&id=${req.params.id}`, null, access_token, CLIENT_ID);
   res.json(data.data?.[0] || null);
 });
 
-app.delete('/api/poll/:id', autenticado, async (req, res) => {
+app.delete('/api/poll/:id', autenticadoAPI, async (req, res) => {
   const { twitch_id, access_token } = await db.getStreamer(req.session.streamer.twitch_id);
   await cmd.twitchAPI('PATCH', '/polls', { broadcaster_id: twitch_id, id: req.params.id, status: 'TERMINATED' }, access_token, CLIENT_ID);
   res.json({ ok: true });
@@ -243,7 +250,7 @@ app.delete('/api/poll/:id', autenticado, async (req, res) => {
 
 const predicaoOutcomes = new Map();
 
-app.post('/api/prediction', autenticado, async (req, res) => {
+app.post('/api/prediction', autenticadoAPI, async (req, res) => {
   const { twitch_id, access_token } = await db.getStreamer(req.session.streamer.twitch_id);
   const { titulo, azul, rosa, duracao } = req.body;
   const data = await cmd.twitchAPI('POST', '/predictions', {
@@ -256,7 +263,7 @@ app.post('/api/prediction', autenticado, async (req, res) => {
   } else res.json({ ok: false, erro: JSON.stringify(data) });
 });
 
-app.patch('/api/prediction/:id', autenticado, async (req, res) => {
+app.patch('/api/prediction/:id', autenticadoAPI, async (req, res) => {
   const { twitch_id, access_token } = await db.getStreamer(req.session.streamer.twitch_id);
   const { status, winningOutcomeIndex } = req.body;
   const body = { broadcaster_id: twitch_id, id: req.params.id, status };
@@ -271,7 +278,7 @@ app.get('/premium', autenticado, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'premium.html'));
 });
 
-app.post('/api/premium/checkout', autenticado, async (req, res) => {
+app.post('/api/premium/checkout', autenticadoAPI, async (req, res) => {
   const { nome, cpf } = req.body;
   const { twitch_id, login, display_name } = req.session.streamer;
 
@@ -324,7 +331,7 @@ app.post('/api/premium/checkout', autenticado, async (req, res) => {
 });
 
 // Verifica status do pagamento (polling do frontend)
-app.get('/api/premium/status/:paymentId', autenticado, async (req, res) => {
+app.get('/api/premium/status/:paymentId', autenticadoAPI, async (req, res) => {
   const payment = await asaas.getPayment(req.params.paymentId);
   const pago    = ['CONFIRMED', 'RECEIVED'].includes(payment.status);
   res.json({ pago, status: payment.status });
@@ -351,13 +358,105 @@ app.post('/webhooks/asaas', express.json(), async (req, res) => {
 
 // ── API — status premium do usuário logado ────────────────────────────────────
 
-app.get('/api/me/premium', autenticado, async (req, res) => {
+app.get('/api/me/premium', autenticadoAPI, async (req, res) => {
   const streamer = await db.getStreamer(req.session.streamer.twitch_id);
   const ativo    = await db.isPremium(streamer.twitch_id);
   res.json({
     premium: ativo,
     expires: streamer.premium_expires_at,
   });
+});
+
+// ── Página pública de comandos (/c/:login) ────────────────────────────────────
+
+app.get('/c/:login', async (req, res) => {
+  const login = req.params.login.toLowerCase();
+  const streamers = await db.getActiveStreamers();
+  const streamer  = streamers.find(s => s.login.toLowerCase() === login);
+  if (!streamer) return res.status(404).send('<h2 style="font-family:sans-serif;color:#efeff1;background:#18181b;padding:40px">Canal não encontrado ou bot não ativo.</h2>');
+
+  const settings = await db.getSettings(streamer.twitch_id);
+  const cmds = Object.entries(settings.commands || {}).filter(([,c]) => c.enabled);
+
+  const extras = [];
+  if (settings.pix?.enabled && settings.pix?.chave) extras.push({ cmd:'!pix', desc:'Chave Pix do streamer', emoji:'💸' });
+  if (settings.moderation?.ban_enabled)     extras.push({ cmd:'!ban @usuario [motivo]', desc:'Bane um usuário (mods)', emoji:'🔨' });
+  if (settings.moderation?.timeout_enabled) extras.push({ cmd:'!timeout @usuario [seg]', desc:'Timeout temporário (mods)', emoji:'⏱' });
+  if (settings.stream?.mude_titulo_enabled) extras.push({ cmd:'!mude Título', desc:'Muda o título da live (mods)', emoji:'✏️' });
+  if (settings.stream?.mude_jogo_enabled)   extras.push({ cmd:'!jogo Nome', desc:'Muda o jogo (mods)', emoji:'🎮' });
+  if (settings.stream?.clip_enabled)        extras.push({ cmd:'!clip', desc:'Cria um clip', emoji:'🎬' });
+  if (settings.stream?.uptime_enabled)      extras.push({ cmd:'!uptime', desc:'Tempo de live', emoji:'⏰' });
+  if (settings.social?.discord)             extras.push({ cmd:'!discord', desc:'Link do Discord', emoji:'💬' });
+  if (settings.social?.instagram)           extras.push({ cmd:'!instagram', desc:'Instagram', emoji:'📸' });
+  if (settings.social?.youtube)             extras.push({ cmd:'!youtube', desc:'YouTube', emoji:'▶️' });
+  if (settings.social?.twitter)             extras.push({ cmd:'!twitter', desc:'Twitter/X', emoji:'🐦' });
+
+  const permLabel = p => ({todos:'Todos',subs:'Subs+',vip:'VIP+',mods:'Mods',broadcaster:'Streamer'})[p]||p;
+
+  const rows = cmds.map(([c,cfg]) => `
+    <tr>
+      <td><code>${c}</code></td>
+      <td>${cfg.emoji||'❓'} ${(cfg.mensagens||[''])[0].replace(/\{usuario\}/g,'@você').substring(0,60)}...</td>
+      <td>${permLabel(cfg.permissao||'todos')}</td>
+      <td>${(cfg.cooldown_ms||0)/1000}s</td>
+    </tr>`).join('');
+
+  const rowsExtra = extras.map(e => `
+    <tr>
+      <td><code>${e.cmd}</code></td>
+      <td>${e.emoji} ${e.desc}</td>
+      <td>—</td><td>—</td>
+    </tr>`).join('');
+
+  res.send(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Comandos de ${streamer.display_name || login}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',sans-serif;background:#0e0e10;color:#efeff1;min-height:100vh;padding:32px 16px}
+.container{max-width:800px;margin:0 auto}
+h1{font-size:22px;font-weight:800;margin-bottom:4px}
+h1 span{color:#9147ff}
+.sub{color:#adadb8;font-size:13px;margin-bottom:24px}
+table{width:100%;border-collapse:collapse;background:#18181b;border-radius:10px;overflow:hidden}
+th{background:#1f1f23;color:#9147ff;font-size:12px;text-transform:uppercase;letter-spacing:.5px;padding:12px 16px;text-align:left}
+td{padding:12px 16px;font-size:13px;border-bottom:1px solid #2a2a2d;color:#adadb8}
+td:first-child{color:#efeff1}
+code{background:#2a2a2d;padding:2px 8px;border-radius:4px;color:#9147ff;font-size:12px}
+tr:last-child td{border-bottom:none}
+.section-title{font-size:12px;color:#5a5a64;text-transform:uppercase;letter-spacing:.5px;margin:24px 0 10px}
+.badge{background:#9147ff22;border:1px solid #9147ff55;color:#9147ff;border-radius:12px;padding:2px 10px;font-size:11px}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Comandos de <span>@${streamer.display_name || login}</span></h1>
+  <p class="sub">Lista de comandos disponíveis no chat · <a href="https://explorarbot.up.railway.app" style="color:#9147ff">ExplorarBot</a></p>
+
+  <div class="section-title">Comandos de zoeira</div>
+  <table>
+    <tr><th>Comando</th><th>Descrição</th><th>Quem pode usar</th><th>Cooldown</th></tr>
+    ${rows || '<tr><td colspan="4" style="color:#5a5a64;text-align:center">Nenhum comando customizado ativo</td></tr>'}
+  </table>
+
+  ${rowsExtra ? `<div class="section-title">Outros comandos</div>
+  <table>
+    <tr><th>Comando</th><th>Descrição</th><th></th><th></th></tr>
+    ${rowsExtra}
+  </table>` : ''}
+</div>
+</body></html>`);
+});
+
+// API pública de comandos (para o bot enviar no chat)
+app.get('/api/c/:login', async (req, res) => {
+  const login = req.params.login.toLowerCase();
+  const streamers = await db.getActiveStreamers();
+  const streamer  = streamers.find(s => s.login.toLowerCase() === login);
+  if (!streamer) return res.json(null);
+  const settings = await db.getSettings(streamer.twitch_id);
+  res.json({ ok: true, url: `${BASE_URL}/c/${login}` });
 });
 
 // ── Health check + self-ping ──────────────────────────────────────────────────

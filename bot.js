@@ -122,7 +122,7 @@ async function onMessage(channel, tags, message, self) {
   // ── Comandos especiais ────────────────────────────────────────────────────
   if (cmdName === '!pix')     { await cmd.handlePix(say, settings); return; }
   if (cmdName === '!uptime')  { await cmd.handleUptime(say, broadcasterId, token, CLIENT_ID); return; }
-  if (cmdName === '!comandos'){ await cmd.handleComandos(say, settings); return; }
+  if (cmdName === '!comandos'){ await cmd.handleComandos(say, settings, login, process.env.BASE_URL); return; }
 
   if (cmdName === '!clip'    && settings.stream?.clip_enabled)        { await cmd.handleClip(say, tags, settings, broadcasterId, token, CLIENT_ID); log('stream','Clip criado por '+usuario); return; }
   if (cmdName === '!so'      && settings.stream?.so_enabled)          { await cmd.handleSO(say, tags, msg, settings, broadcasterId, token, CLIENT_ID); log('stream','SO por '+usuario); return; }
@@ -232,7 +232,27 @@ async function reconectarComTokenNovo() {
   }
 }
 
+// Envia uma mensagem diretamente em um canal (usado pelo painel para testar)
+async function sayInChannel(login, texto) {
+  if (!client) throw new Error('Bot não conectado');
+  await client.say(`#${login}`, texto);
+}
+
+// Invoca um comando como se viesse do broadcaster (usado pelo painel)
+async function invocarComando(login, msg) {
+  if (!client) throw new Error('Bot não conectado');
+  const fakeTags = {
+    'display-name': login,
+    username: login,
+    mod: true,
+    subscriber: true,
+    badges: { broadcaster: '1' },
+  };
+  await onMessage(`#${login}`, fakeTags, msg, false);
+}
+
 module.exports = {
   start, joinChannel, partChannel, invalidateCache,
   addLogListener, removeLogListener, getSettings,
+  sayInChannel, invocarComando,
 };
