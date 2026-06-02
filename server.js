@@ -61,8 +61,21 @@ app.get('/entrar', (req, res) => {
   res.redirect(url);
 });
 
+// Setup do bot — você acessa UMA vez logado na conta do BOT.
+// Protegido por uma chave secreta na URL: /setup-bot?key=SESSION_SECRET
+app.get('/setup-bot', (req, res) => {
+  if (req.query.key !== process.env.SESSION_SECRET) {
+    return res.status(403).send('Chave inválida. Use /setup-bot?key=SUA_SESSION_SECRET');
+  }
+  const url = `https://id.twitch.tv/oauth2/authorize?client_id=${CLIENT_ID}`
+    + `&redirect_uri=${encodeURIComponent(REDIRECT)}`
+    + `&response_type=code&scope=${encodeURIComponent('chat:read chat:edit')}`
+    + `&state=bot&force_verify=true`;
+  res.redirect(url);
+});
+
 app.get('/auth/callback', async (req, res) => {
-  const { code, error } = req.query;
+  const { code, error, state } = req.query;
   if (error || !code) return res.redirect('/?erro=cancelado');
 
   try {
@@ -85,6 +98,24 @@ app.get('/auth/callback', async (req, res) => {
     const userData = await userRes.json();
     const user = userData.data?.[0];
     if (!user) return res.redirect('/?erro=usuario');
+
+    // ── Setup do BOT: guarda tokens do bot que vão se renovar sozinhos ──────
+    if (state === 'bot') {
+      await db.setConfig('bot_username', user.login);
+      await db.setConfig('bot_access_token', tokenData.access_token);
+      await db.setConfig('bot_refresh_token', tokenData.refresh_token || '');
+      console.log(`[BOT] Conta configurada: ${user.login}. Reiniciando conexão...`);
+      // Reinicia o bot com as novas credenciais
+      bot.start().catch(e => console.error('[BOT] erro ao iniciar:', e.message));
+      return res.send(`
+        <body style="font-family:sans-serif;background:#18181b;color:#efeff1;text-align:center;padding:60px">
+          <h1 style="color:#9147ff">✅ Bot configurado!</h1>
+          <p>Conta do bot: <b>${user.login}</b></p>
+          <p>O token vai se renovar sozinho. Não precisa mexer nunca mais.</p>
+          <a href="/" style="color:#9147ff">Voltar ao site</a>
+        </body>
+      `);
+    }
 
     // Salva no banco e entra no canal
     await db.upsertStreamer({

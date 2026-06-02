@@ -50,7 +50,27 @@ async function init() {
       created_at TIMESTAMP   DEFAULT NOW()
     )
   `);
+  // Config chave-valor (guarda tokens do bot que se renovam sozinhos)
+  await q(`
+    CREATE TABLE IF NOT EXISTS app_config (
+      chave VARCHAR(80) PRIMARY KEY,
+      valor TEXT,
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
   console.log('[DB] Tabelas prontas');
+}
+
+async function getConfig(chave) {
+  const r = await q('SELECT valor FROM app_config WHERE chave=$1', [chave]);
+  return r.rows[0]?.valor ?? null;
+}
+
+async function setConfig(chave, valor) {
+  await q(`
+    INSERT INTO app_config (chave, valor) VALUES ($1,$2)
+    ON CONFLICT (chave) DO UPDATE SET valor=$2, updated_at=NOW()
+  `, [chave, valor]);
 }
 
 async function upsertStreamer({ twitch_id, login, display_name, access_token, refresh_token }) {
@@ -146,5 +166,6 @@ module.exports = {
   deactivateStreamer, getSettings, saveSettings,
   logCommand, getRecentLog,
   ativarPremium, salvarAsaasCliente, isPremium,
+  getConfig, setConfig,
   ping,
 };

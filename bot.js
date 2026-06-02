@@ -1,9 +1,11 @@
 require('dotenv').config();
-const tmi = require('tmi.js');
-const db  = require('./db');
-const cmd = require('./commands');
+const tmi   = require('tmi.js');
+const fetch = require('node-fetch');
+const db    = require('./db');
+const cmd   = require('./commands');
 
-const CLIENT_ID = process.env.TWITCH_CLIENT_ID;
+const CLIENT_ID     = process.env.TWITCH_CLIENT_ID;
+const CLIENT_SECRET = process.env.TWITCH_CLIENT_SECRET;
 
 // Cache de settings por canal (evita bater no banco a cada mensagem)
 const settingsCache = new Map();
@@ -50,18 +52,50 @@ function setCooldown(usuario, cmdName) {
   cooldowns.set(`${usuario}:${cmdName}`, Date.now());
 }
 
+// ── Renovação automática do token do bot ──────────────────────────────────────
+// O bot guarda access_token + refresh_token no banco (config). O access_token
+// expira em ~4h, então renovamos usando o refresh_token (que é longo). Assim o
+// bot nunca mais precisa de atualização manual de token.
+
+async function renovarTokenBot() {
+  const refresh = await db.getConfig('bot_refresh_token');
+  if (!refresh) return null;
+
+  const res = await fetch('https://id.twitch.tv/oauth2/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: CLIENT_ID,
+      client_secret: CLIENT_SECRET,
+      grant_type: 'refresh_token',
+      refresh_token: refresh,
+    }),
+  });
+  const data = await res.json();
+  if (!data.access_token) {
+    console.error('[BOT] Falha ao renovar token:', JSON.stringify(data));
+    return null;
+  }
+  await db.setConfig('bot_access_token', data.access_token);
+  if (data.refresh_token) await db.setConfig('bot_refresh_token', data.refresh_token);
+  console.log('[BOT] Token renovado com sucesso');
+  return data.access_token;
+}
+
 // ── Cliente TMI único para todos os canais ────────────────────────────────────
 
-const client = new tmi.Client({
-  options: { debug: false },
-  identity: {
-    username: process.env.BOT_USERNAME,
-    password: process.env.BOT_OAUTH_TOKEN,
-  },
-  channels: [],
-});
+let client = null;
 
-client.on('message', async (channel, tags, message, self) => {
+function criarClient(username, token) {
+  return new tmi.Client({
+    options: { debug: false },
+    connection: { reconnect: true, secure: true },
+    identity: { username, password: `oauth:${token}` },
+    channels: [],
+  });
+}
+
+async function onMessage(channel, tags, message, self) {
   if (self) return;
   const login    = channel.replace('#', '');
   const msg      = message.trim();
@@ -129,11 +163,10 @@ client.on('message', async (channel, tags, message, self) => {
   say(texto);
   setCooldown(usuario, cmdName);
   log('cmd', texto, { cmd: cmdName, usuario });
-});
-
-client.on('connected', () => console.log('[BOT] Conectado ao Twitch IRC'));
+}
 
 async function joinChannel(login) {
+  if (!client) return;
   try {
     await client.join(login);
     console.log(`[BOT] Entrou em #${login}`);
@@ -143,17 +176,63 @@ async function joinChannel(login) {
 }
 
 async function partChannel(login) {
+  if (!client) return;
   try {
     await client.part(login);
     console.log(`[BOT] Saiu de #${login}`);
   } catch {}
 }
 
+let refreshTimer = null;
+
 async function start() {
+  // 1. Pega/renova o token do bot a partir do refresh_token guardado no banco
+  let username = await db.getConfig('bot_username');
+  let token    = await renovarTokenBot();
+
+  if (!username || !token) {
+    console.warn('\n⚠️  Bot não configurado. Acesse /setup-bot e faça login com a conta do bot UMA vez.');
+    console.warn('   Depois o token renova sozinho pra sempre.\n');
+    return;
+  }
+
+  // 2. Cria o cliente TMI com o token fresco
+  client = criarClient(username, token);
+  client.on('message', onMessage);
+  client.on('connected', () => console.log('[BOT] Conectado ao Twitch IRC'));
+
   await client.connect();
+
+  // 3. Entra em todos os canais ativos
   const streamers = await db.getActiveStreamers();
   for (const s of streamers) await joinChannel(s.login);
   console.log(`[BOT] ${streamers.length} canal(is) ativos`);
+
+  // 4. Renova o token a cada 3h e reconecta com o novo
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(reconectarComTokenNovo, 3 * 60 * 60 * 1000);
 }
 
-module.exports = { start, joinChannel, partChannel, invalidateCache, addLogListener, removeLogListener, getSettings };
+async function reconectarComTokenNovo() {
+  try {
+    const token    = await renovarTokenBot();
+    const username = await db.getConfig('bot_username');
+    if (!token || !username) return;
+
+    const canais = client ? [...client.getChannels()] : [];
+    try { if (client) await client.disconnect(); } catch {}
+
+    client = criarClient(username, token);
+    client.on('message', onMessage);
+    client.on('connected', () => console.log('[BOT] Reconectado com token novo'));
+    await client.connect();
+    for (const ch of canais) await joinChannel(ch.replace('#', ''));
+  } catch (e) {
+    console.error('[BOT] Erro ao reconectar:', e.message);
+  }
+}
+
+module.exports = {
+  start, joinChannel, partChannel, invalidateCache,
+  addLogListener, removeLogListener, getSettings,
+};
