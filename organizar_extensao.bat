@@ -38,7 +38,7 @@ echo {
 echo   "author_name": "ExplorarLocais",
 echo   "description": "ExplorarLocais Bot para Twitch",
 echo   "name": "ExplorarLocais Bot",
-echo   "version": "0.0.1",
+echo   "version": "0.0.2",
 echo   "views": {
 echo     "panel": {
 echo       "viewer_url": "panel.html"

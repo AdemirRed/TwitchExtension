@@ -4,15 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Painel - Comandos</title>
-  <link rel="stylesheet" href="css/style.css">
   <style>
-    #dev-tools { display: none; padding: 8px; background: #0e0e10; border-top: 1px solid #3a3a3d; }
-    #dev-tools p { font-size: 10px; color: #5a5a64; margin-bottom: 6px; }
-    #dev-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
-    #dev-buttons button {
-      background: #2a2a2d; border: 1px solid #9147ff; color: #9147ff;
-      border-radius: 3px; padding: 3px 8px; font-size: 11px; cursor: pointer;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', 'Segoe UI', sans-serif; background: transparent; color: #efeff1; overflow: hidden; }
+    .panel-container { background: #18181b; width: 100%; height: 300px; display: flex; flex-direction: column; padding: 12px; }
+    .panel-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; border-bottom: 1px solid #3a3a3d; padding-bottom: 8px; }
+    .panel-header .dot { width: 8px; height: 8px; border-radius: 50%; background: #9147ff; animation: pulse 1.5s infinite; }
+    .panel-header h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #adadb8; }
+    .command-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+    .command-item { background: #1f1f23; border-left: 3px solid #9147ff; border-radius: 4px; padding: 8px 10px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; animation: slideIn 0.3s ease; }
+    .command-item .cmd-name { color: #9147ff; font-weight: 700; }
+    .command-item .cmd-user { color: #adadb8; font-size: 11px; }
+    .no-commands { text-align: center; color: #5a5a64; font-size: 12px; margin-top: 30px; line-height: 1.6; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    @keyframes slideIn { from{opacity:0;transform:translateX(-10px)} to{opacity:1;transform:translateX(0)} }
   </style>
 </head>
 <body>
@@ -24,13 +29,42 @@
     <div class="command-list" id="command-list"></div>
   </div>
 
-  <div id="dev-tools">
-    <p>DEV: clique para simular</p>
-    <div id="dev-buttons"></div>
-  </div>
-
   <script src="https://extension-files.twitch.tv/helper/v1/twitch-ext.min.js"></script>
-  <script src="js/twitch-ext.js"></script>
-  <script src="js/panel.js"></script>
+  <script>
+    var BACKEND = 'https://explorarbot.up.railway.app';
+    var PERM_LABEL = { todos:'Todos', subs:'Subs', vip:'VIP', mods:'Mods', broadcaster:'Streamer' };
+
+    function renderLista(comandos) {
+      var list = document.getElementById('command-list');
+      if (!comandos || comandos.length === 0) {
+        list.innerHTML = '<p class="no-commands">Este canal ainda nao configurou comandos.<br>Volte em breve!</p>';
+        return;
+      }
+      list.innerHTML = comandos.map(function(c) {
+        return '<div class="command-item"><span class="cmd-name">' + (c.emoji||'') + ' ' + c.cmd + '</span><span class="cmd-user">' + (c.desc || PERM_LABEL[c.perm] || '') + '</span></div>';
+      }).join('');
+    }
+
+    function carregar(channelId) {
+      fetch(BACKEND + '/api/extension/' + channelId + '/commands')
+        .then(function(r){ return r.json(); })
+        .then(function(data) {
+          if (data.ok) {
+            var h = document.querySelector('.panel-header h2');
+            if (h && data.canal) h.textContent = 'Comandos - ' + data.canal;
+            renderLista(data.commands);
+          } else { renderLista([]); }
+        })
+        .catch(function() {
+          document.getElementById('command-list').innerHTML = '<p class="no-commands">Nao foi possivel carregar os comandos.</p>';
+        });
+    }
+
+    if (window.Twitch && window.Twitch.ext) {
+      window.Twitch.ext.onAuthorized(function(auth) { carregar(auth.channelId); });
+    } else {
+      carregar('131509204');
+    }
+  </script>
 </body>
 </html>
