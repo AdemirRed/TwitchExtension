@@ -380,19 +380,49 @@ app.post('/webhooks/asaas', express.json(), async (req, res) => {
 
   const { event, payment } = req.body;
 
-  if (['PAYMENT_CONFIRMED', 'PAYMENT_RECEIVED'].includes(event) && payment?.externalReference) {
-    // externalReference = "twitchId:plano"
-    const [twitchId, plano] = payment.externalReference.split(':');
-    await db.ativarPremium(twitchId, plano || 'mensal');
-    console.log(`[Premium] Ativado (${plano}) para ${twitchId} via Asaas`);
+  if (['PAYMENT_CONFIRMED', 'PAYMENT_RECEIVED'].includes(event) && payment) {
+    let twitchId = null;
+    let plano    = null;
 
-    // E-mail de confirmação
-    const streamer = await db.getStreamer(twitchId);
-    if (streamer?.email) {
-      mailer.confirmacaoAssinatura(streamer.email, {
-        plano: plano || 'mensal',
-        expira: streamer.premium_expires_at,
+    // 1) Tenta pelo externalReference ("twitchId:plano")
+    if (payment.externalReference) {
+      const partes = payment.externalReference.split(':');
+      twitchId = partes[0];
+      plano    = partes[1];
+    }
+
+    // 2) Fallback: busca pelo subscription/customer (cobranças de assinatura
+    //    nem sempre repassam o externalReference)
+    if (!twitchId) {
+      const s = await db.getStreamerPorAsaas({
+        subscriptionId: payment.subscription,
+        customerId:     payment.customer,
       });
+      if (s) {
+        twitchId = s.twitch_id;
+        // Se veio de assinatura → mensal; senão usa o plano salvo
+        plano = payment.subscription ? 'mensal' : (s.plano || 'mensal');
+      }
+    }
+
+    // 3) Se ainda assim achou plano nulo, deduz pelo valor
+    if (twitchId && !plano) {
+      plano = Number(payment.value) >= (asaas.PRECO_VITALICIO - 1) ? 'vitalicio' : 'mensal';
+    }
+
+    if (twitchId) {
+      await db.ativarPremium(twitchId, plano || 'mensal');
+      console.log(`[Premium] Ativado (${plano}) para ${twitchId} via Asaas [${event}]`);
+
+      const streamer = await db.getStreamer(twitchId);
+      if (streamer?.email) {
+        mailer.confirmacaoAssinatura(streamer.email, {
+          plano: plano || 'mensal',
+          expira: streamer.premium_expires_at,
+        });
+      }
+    } else {
+      console.warn('[webhook] Pagamento recebido mas streamer não identificado:', payment.id);
     }
   }
 

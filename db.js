@@ -181,6 +181,20 @@ async function salvarAssinatura(twitch_id, subscription_id) {
   await q(`UPDATE streamers SET asaas_subscription_id=$2 WHERE twitch_id=$1`, [twitch_id, subscription_id]);
 }
 
+// Busca streamer pelo ID de cliente OU de assinatura do Asaas (fallback do webhook)
+async function getStreamerPorAsaas({ customerId, subscriptionId }) {
+  let r;
+  if (subscriptionId) {
+    r = await q(`SELECT * FROM streamers WHERE asaas_subscription_id=$1`, [subscriptionId]);
+    if (r.rows[0]) return decryptStreamer(r.rows[0]);
+  }
+  if (customerId) {
+    r = await q(`SELECT * FROM streamers WHERE asaas_customer_id=$1`, [customerId]);
+    if (r.rows[0]) return decryptStreamer(r.rows[0]);
+  }
+  return null;
+}
+
 async function salvarEmailStreamer(twitch_id, email) {
   await q(`UPDATE streamers SET email=$2 WHERE twitch_id=$1`, [twitch_id, email]);
 }
@@ -232,6 +246,7 @@ module.exports = {
   deactivateStreamer, getSettings, saveSettings,
   logCommand, getRecentLog,
   ativarPremium, salvarAsaasCliente, salvarAssinatura, salvarEmailStreamer, isPremium,
+  getStreamerPorAsaas,
   premiumVencendo, premiumExpirados, marcarLembreteEnviado, desativarPremium,
   getConfig, setConfig,
   ping,
