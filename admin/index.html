@@ -112,8 +112,31 @@
 
     /* Variáveis de inserção */
     .var-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
-    .var-chip{background:var(--card2);border:1px solid var(--purple);color:var(--purple);border-radius:6px;padding:4px 10px;font-size:12px;font-family:monospace;cursor:pointer;transition:.15s;user-select:none}
+    .var-chip{background:var(--card2);border:1px solid var(--purple);color:var(--purple);border-radius:6px;padding:4px 10px;font-size:12px;font-family:monospace;cursor:pointer;transition:.15s;user-select:none;position:relative}
     .var-chip:hover{background:var(--purple);color:#fff}
+
+    /* Tooltip customizado */
+    .tooltip-wrap{position:relative;display:inline-flex}
+    .tooltip-wrap .tooltip{
+      display:none;position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);
+      background:#0e0e10;border:1px solid var(--border);color:var(--text);
+      font-size:11px;font-family:'Segoe UI',sans-serif;font-weight:400;
+      padding:6px 10px;border-radius:6px;white-space:nowrap;z-index:200;
+      pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,.5);line-height:1.4;
+      max-width:220px;white-space:normal;text-align:center;
+    }
+    .tooltip-wrap .tooltip::after{
+      content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);
+      border:5px solid transparent;border-top-color:#0e0e10;
+    }
+    .tooltip-wrap:hover .tooltip{display:block}
+
+    /* Modal de edição */
+    .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;align-items:center;justify-content:center}
+    .modal-bg.open{display:flex}
+    .modal{background:var(--card);border-radius:12px;padding:24px;width:100%;max-width:480px;display:flex;flex-direction:column;gap:14px;border:1px solid var(--border)}
+    .modal h3{font-size:15px;font-weight:700}
+    .modal-footer{display:flex;gap:8px;justify-content:flex-end}
 
     /* Enquetes */
     .poll-opcoes{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
@@ -193,16 +216,56 @@
       <label>Mensagens (separe com linha em branco para ter variações aleatórias)</label>
       <div class="var-chips">
         <span style="font-size:11px;color:var(--dim);align-self:center">Inserir:</span>
-        <button type="button" class="var-chip" onclick="inserirVar('{usuario}')">@{usuario}</button>
-        <button type="button" class="var-chip" onclick="inserirVar('{alvo}')">@{alvo}</button>
-        <button type="button" class="var-chip" onclick="inserirVar('{canal}')">#{canal}</button>
-        <button type="button" class="var-chip" onclick="inserirVar(' KEKW')">KEKW</button>
-        <button type="button" class="var-chip" onclick="inserirVar(' LUL')">LUL</button>
-        <button type="button" class="var-chip" onclick="inserirVar(' PogChamp')">PogChamp</button>
-        <button type="button" class="var-chip" onclick="inserirVar(' monkaS')">monkaS</button>
-        <button type="button" class="var-chip" onclick="inserirVar(' 😂')">😂</button>
-        <button type="button" class="var-chip" onclick="inserirVar(' 🔥')">🔥</button>
-        <button type="button" class="var-chip" onclick="inserirVar(' 💀')">💀</button>
+
+        <div class="tooltip-wrap">
+          <button type="button" class="var-chip" onclick="inserirVar('{usuario}')">@{usuario}</button>
+          <div class="tooltip">Nome de quem usou o comando<br><b>Ex:</b> @{usuario} fez algo!</div>
+        </div>
+
+        <div class="tooltip-wrap">
+          <button type="button" class="var-chip" onclick="inserirVar('{alvo}')">@{alvo}</button>
+          <div class="tooltip">Nome do alvo (quando usa !cmd @alguem)<br>Se não informado, escolhe aleatório</div>
+        </div>
+
+        <div class="tooltip-wrap">
+          <button type="button" class="var-chip" onclick="inserirVar('{canal}')">#{canal}</button>
+          <div class="tooltip">Nome do canal do streamer<br><b>Ex:</b> Bem-vindo a #{canal}!</div>
+        </div>
+
+        <div class="tooltip-wrap">
+          <button type="button" class="var-chip" onclick="inserirVar(' KEKW')">KEKW</button>
+          <div class="tooltip">Emote de riso da Twitch 😂<br>Funciona em canais com emotes BTTV</div>
+        </div>
+
+        <div class="tooltip-wrap">
+          <button type="button" class="var-chip" onclick="inserirVar(' LUL')">LUL</button>
+          <div class="tooltip">Emote de risada global da Twitch</div>
+        </div>
+
+        <div class="tooltip-wrap">
+          <button type="button" class="var-chip" onclick="inserirVar(' PogChamp')">PogChamp</button>
+          <div class="tooltip">Emote de surpresa/hype da Twitch</div>
+        </div>
+
+        <div class="tooltip-wrap">
+          <button type="button" class="var-chip" onclick="inserirVar(' monkaS')">monkaS</button>
+          <div class="tooltip">Emote de tensão/nervoso (BTTV)<br>Reação de "isso tá tenso..."</div>
+        </div>
+
+        <div class="tooltip-wrap">
+          <button type="button" class="var-chip" onclick="inserirVar(' 😂')">😂</button>
+          <div class="tooltip">Emoji de risada 😂</div>
+        </div>
+
+        <div class="tooltip-wrap">
+          <button type="button" class="var-chip" onclick="inserirVar(' 🔥')">🔥</button>
+          <div class="tooltip">Emoji de fogo / hype 🔥</div>
+        </div>
+
+        <div class="tooltip-wrap">
+          <button type="button" class="var-chip" onclick="inserirVar(' 💀')">💀</button>
+          <div class="tooltip">Emoji de caveira / morreu de rir 💀</div>
+        </div>
       </div>
       <textarea id="newMsg" placeholder="@{usuario} fez algo incrível!&#10;&#10;Nossa, @{usuario} arrasou de novo!"></textarea>
     </div>
@@ -528,6 +591,40 @@
   </div>
 </div>
 
+<!-- Modal de edição de comando -->
+<div class="modal-bg" id="modal-editar">
+  <div class="modal">
+    <h3>✏️ Editar Comando <span id="modal-cmd-nome" style="color:var(--purple)"></span></h3>
+    <input type="hidden" id="modal-cmd-key">
+    <div class="form-group">
+      <label>Emoji</label>
+      <input type="text" id="modal-emoji" maxlength="4" style="width:80px">
+    </div>
+    <div class="form-group">
+      <label>Permissão</label>
+      <select id="modal-perm">
+        <option value="todos">👥 Todos</option>
+        <option value="subs">⭐ Subs+</option>
+        <option value="vip">💎 VIP+</option>
+        <option value="mods">🔧 Mods+</option>
+        <option value="broadcaster">👑 Só streamer</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Cooldown (segundos)</label>
+      <input type="number" id="modal-cooldown" min="0" max="3600">
+    </div>
+    <div class="form-group">
+      <label>Mensagens (linha em branco = variação aleatória)</label>
+      <textarea id="modal-msgs" style="min-height:120px"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarEdicao()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 let S = {};
 let logFilter = 'todos';
@@ -597,7 +694,8 @@ function renderCmds() {
             <input type="checkbox" ${cfg.enabled?'checked':''} onchange="toggleCmd('${cmd}',this.checked)">
             <span class="slider"></span>
           </label>
-          <button class="btn btn-danger btn-sm" onclick="removerCmd('${cmd}')">✕</button>
+          <button class="btn btn-ghost btn-sm" onclick="abrirModal('${cmd}')" title="Editar comando">✏️</button>
+          <button class="btn btn-danger btn-sm" onclick="removerCmd('${cmd}')" title="Remover comando">✕</button>
         </div>
       </div>
       <div class="cmd-msgs">${(cfg.mensagens||[]).join(' / ')}</div>
@@ -621,6 +719,43 @@ async function removerCmd(cmd) {
   await salvarSettings();
   renderCmds();
 }
+
+// ── Modal de edição ───────────────────────────────────────────────────────────
+function abrirModal(cmd) {
+  const cfg = S.commands[cmd];
+  if (!cfg) return;
+  document.getElementById('modal-cmd-key').value   = cmd;
+  document.getElementById('modal-cmd-nome').textContent = cmd;
+  document.getElementById('modal-emoji').value     = cfg.emoji || '❓';
+  document.getElementById('modal-perm').value      = cfg.permissao || 'todos';
+  document.getElementById('modal-cooldown').value  = (cfg.cooldown_ms || 0) / 1000;
+  document.getElementById('modal-msgs').value      = (cfg.mensagens || []).join('\n\n');
+  document.getElementById('modal-editar').classList.add('open');
+}
+
+function fecharModal() {
+  document.getElementById('modal-editar').classList.remove('open');
+}
+
+async function salvarEdicao() {
+  const cmd      = document.getElementById('modal-cmd-key').value;
+  const emoji    = document.getElementById('modal-emoji').value.trim() || '❓';
+  const perm     = document.getElementById('modal-perm').value;
+  const cooldown = parseInt(document.getElementById('modal-cooldown').value) * 1000;
+  const rawMsgs  = document.getElementById('modal-msgs').value.trim();
+  const mensagens = rawMsgs.split(/\n\n+/).map(s => s.trim()).filter(Boolean);
+
+  S.commands[cmd] = { ...S.commands[cmd], emoji, permissao: perm, cooldown_ms: cooldown, mensagens };
+  await salvarSettings();
+  fecharModal();
+  renderCmds();
+  showToast('Comando atualizado!');
+}
+
+// Fecha modal ao clicar fora
+document.getElementById('modal-editar').addEventListener('click', function(e) {
+  if (e.target === this) fecharModal();
+});
 
 async function addCmd() {
   const cmd     = document.getElementById('newCmd').value.trim().toLowerCase();
