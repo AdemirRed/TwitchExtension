@@ -106,6 +106,7 @@
   </div>
 
   <a href="/painel" class="back">← Voltar ao painel</a>
+  <a href="/cancelar" class="back" style="color:#f04747;margin-top:8px">Cancelar assinatura</a>
 </div>
 
 <script>
@@ -153,8 +154,10 @@
       });
       const data = await res.json();
       if (data.ok && data.redirect) {
-        // Redireciona para a página de pagamento do Asaas
-        window.location.href = data.redirect;
+        // Abre a página de pagamento do Asaas em nova aba
+        window.open(data.redirect, '_blank');
+        btn.disabled = false;
+        btn.textContent = 'Pagamento aberto em nova aba!';
       } else {
         erro.textContent = data.erro || 'Erro ao gerar pagamento.';
         btn.disabled = false;

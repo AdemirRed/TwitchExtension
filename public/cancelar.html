@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Cancelar Assinatura — ExplorarBot</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    :root{--purple:#9147ff;--dark:#0e0e10;--card:#18181b;--border:#2a2a2d;--text:#efeff1;--muted:#adadb8;--red:#f04747;--green:#43b581}
+    body{font-family:'Segoe UI',sans-serif;background:var(--dark);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px 16px}
+    .box{max-width:480px;width:100%;text-align:center}
+    .icon{font-size:48px;margin-bottom:16px}
+    h1{font-size:22px;font-weight:800;margin-bottom:8px}
+    .desc{font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:24px}
+    .status-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px;text-align:left}
+    .status-row{display:flex;justify-content:space-between;padding:8px 0;font-size:13px;border-bottom:1px solid var(--border)}
+    .status-row:last-child{border-bottom:none}
+    .status-label{color:var(--muted)}
+    .status-val{font-weight:700}
+    .status-val.ativo{color:var(--green)}
+    .status-val.inativo{color:var(--muted)}
+    .btn-cancel{background:var(--red);color:#fff;border:none;border-radius:8px;padding:14px;font-size:15px;font-weight:800;cursor:pointer;width:100%;transition:.2s}
+    .btn-cancel:hover{background:#d63031}
+    .btn-cancel:disabled{opacity:.5;cursor:not-allowed}
+    .msg{font-size:13px;margin-top:12px;padding:10px;border-radius:8px}
+    .msg.ok{background:#43b58122;color:var(--green);border:1px solid #43b58155}
+    .msg.erro{background:#f0474722;color:var(--red);border:1px solid #f0474755}
+    .back{display:block;text-align:center;color:var(--muted);font-size:13px;margin-top:18px;text-decoration:none}
+    .loading{color:var(--muted);font-size:14px}
+  </style>
+</head>
+<body>
+<div class="box">
+  <div class="icon">&#128532;</div>
+  <h1>Cancelar Assinatura</h1>
+  <p class="desc">Tem certeza que quer cancelar? Voce perdera acesso aos recursos Premium no final do periodo pago.</p>
+
+  <div class="status-box" id="status-box">
+    <p class="loading" id="loading">Carregando dados da assinatura...</p>
+  </div>
+
+  <button class="btn-cancel" id="btn-cancel" style="display:none" onclick="cancelar()">Confirmar cancelamento</button>
+  <div id="msg"></div>
+
+  <a href="/premium" class="back">Voltar ao Premium</a>
+  <a href="/painel" class="back">Voltar ao painel</a>
+</div>
+
+<script>
+  var statusBox = document.getElementById('status-box');
+  var btnCancel = document.getElementById('btn-cancel');
+  var msgEl     = document.getElementById('msg');
+  var loading   = document.getElementById('loading');
+
+  fetch('/api/me/premium')
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      loading.style.display = 'none';
+      if (!data.premium) {
+        statusBox.innerHTML = '<div class="status-row"><span class="status-label">Status</span><span class="status-val inativo">Sem Premium ativo</span></div>';
+        return;
+      }
+      var expira = data.expires ? new Date(data.expires).toLocaleDateString('pt-BR') : '—';
+      statusBox.innerHTML =
+        '<div class="status-row"><span class="status-label">Status</span><span class="status-val ativo">Premium Ativo</span></div>' +
+        '<div class="status-row"><span class="status-label">Valido ate</span><span class="status-val">' + expira + '</span></div>';
+      btnCancel.style.display = 'block';
+    })
+    .catch(function() {
+      loading.textContent = 'Erro ao carregar. Faca login novamente.';
+    });
+
+  function cancelar() {
+    if (!confirm('Tem certeza que quer cancelar sua assinatura Premium?')) return;
+    btnCancel.disabled = true;
+    btnCancel.textContent = 'Cancelando...';
+
+    fetch('/api/premium/cancelar', { method: 'POST' })
+      .then(function(r){ return r.json(); })
+      .then(function(data) {
+        if (data.ok) {
+          msgEl.className = 'msg ok';
+          msgEl.textContent = data.nota || 'Assinatura cancelada com sucesso.';
+          btnCancel.style.display = 'none';
+        } else {
+          msgEl.className = 'msg erro';
+          msgEl.textContent = data.erro || 'Erro ao cancelar.';
+          btnCancel.disabled = false;
+          btnCancel.textContent = 'Confirmar cancelamento';
+        }
+      })
+      .catch(function() {
+        msgEl.className = 'msg erro';
+        msgEl.textContent = 'Erro de conexao. Tente novamente.';
+        btnCancel.disabled = false;
+        btnCancel.textContent = 'Confirmar cancelamento';
+      });
+  }
+</script>
+</body>
+</html>

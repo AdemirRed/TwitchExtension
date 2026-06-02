@@ -54,14 +54,14 @@ async function criarCobrancaVitalicio({ clienteId, twitchId }) {
   });
 }
 
-// ── MENSAL: assinatura recorrente no CARTÃO (auto-renova sozinha) ─────────────
+// ── MENSAL: assinatura recorrente (cliente escolhe pix/cartão/boleto) ─────────
 async function criarAssinaturaMensal({ clienteId, twitchId }) {
   const proxVenc = new Date();
   proxVenc.setDate(proxVenc.getDate() + 1);
 
   return api('POST', '/subscriptions', {
     customer:          clienteId,
-    billingType:       'CREDIT_CARD', // cartão tokenizado → cobra automático todo mês
+    billingType:       'UNDEFINED', // Asaas gera cobrança mensal — cliente escolhe método
     value:             PRECO_MENSAL,
     nextDueDate:       proxVenc.toISOString().split('T')[0],
     cycle:             'MONTHLY',

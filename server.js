@@ -305,6 +305,10 @@ app.get('/premium', autenticado, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'premium.html'));
 });
 
+app.get('/cancelar', autenticado, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'cancelar.html'));
+});
+
 // Retorna os preços (para o frontend exibir)
 app.get('/api/premium/precos', (req, res) => {
   res.json({ mensal: asaas.PRECO_MENSAL, vitalicio: asaas.PRECO_VITALICIO });
