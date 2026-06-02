@@ -569,7 +569,7 @@ app.get('/api/extension/:twitchId/commands', async (req, res) => {
         lista.push({
           cmd,
           emoji: cfg.emoji || '💬',
-          desc: (cfg.mensagens?.[0] || '').replace(/\{usuario\}/g, '@você').replace(/\{alvo\}/g, '@alvo').slice(0, 50),
+          desc: (cfg.mensagens?.[0] || '').replace(/@?\{usuario\}/g, '@você').replace(/@?\{alvo\}/g, '@alvo').slice(0, 50),
           perm: cfg.permissao || 'todos',
         });
       }
