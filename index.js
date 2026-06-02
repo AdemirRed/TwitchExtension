@@ -26,14 +26,21 @@ const { app, PORT, iniciarSelfPing } = require('./server');
 
 async function main() {
   await db.init();
-  await bot.start();
 
+  // Servidor web sobe SEMPRE — independente do bot do Twitch.
   http.createServer(app).listen(PORT, () => {
     console.log(`\n🚀 Servidor rodando na porta ${PORT}`);
     console.log(`🌐 ${process.env.BASE_URL || 'http://localhost:' + PORT}\n`);
   });
 
   iniciarSelfPing();
+
+  // Bot do Twitch sobe separado — se o token estiver expirado/inválido,
+  // o app continua de pé e os streamers ainda conseguem logar e configurar.
+  bot.start().catch(err => {
+    console.error('⚠️  Bot do Twitch não conectou:', err?.message || err);
+    console.error('   Verifique/regenere o BOT_OAUTH_TOKEN. O painel continua funcionando.');
+  });
 }
 
 main().catch(err => {
