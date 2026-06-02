@@ -105,7 +105,8 @@
   <div class="hero-badge">🟢 Gratuito para todos os streamers</div>
   <h1>O bot que faz<br><span>sua chat zoar</span> de verdade</h1>
   <p>Comandos de zoeira, moderação, enquetes, predições e muito mais — tudo configurado em um painel visual, sem precisar programar nada.</p>
-  <div class="hero-btns">
+  <div class="hero-btns" id="hero-btns">
+    <!-- Preenchido pelo JS após verificar sessão -->
     <a href="/entrar" class="btn-hero btn-primary">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z"/></svg>
       Conectar com Twitch
@@ -286,6 +287,25 @@
 </footer>
 
 <script>
+  // ── Detecta sessão e adapta os botões ────────────────────────────────────────
+  fetch('/api/me').then(r => r.json()).then(user => {
+    const nav   = document.querySelector('.nav-links');
+    const hero  = document.getElementById('hero-btns');
+
+    if (user) {
+      // Logado: mostra "Ir ao painel" e avatar na nav
+      nav.innerHTML = `
+        <span style="font-size:13px;color:var(--muted)">Olá, <b style="color:var(--text)">${user.display_name}</b></span>
+        <a href="/painel" class="nav-btn">⚙️ Meu Painel</a>
+        <a href="/sair" class="nav-btn ghost">Sair</a>
+      `;
+      hero.innerHTML = `
+        <a href="/painel" class="btn-hero btn-primary">⚙️ Ir ao meu painel</a>
+        <a href="#funciona" class="btn-hero btn-ghost">Ver funcionalidades</a>
+      `;
+    }
+  }).catch(() => {});
+
   // Mostrar alerta se vier com parâmetro de erro
   const params = new URLSearchParams(location.search);
   if (params.get('erro')) {

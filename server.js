@@ -1,13 +1,15 @@
 require('dotenv').config();
-const express = require('express');
-const session = require('express-session');
-const fetch   = require('node-fetch');
-const path    = require('path');
-const http    = require('http');
-const db      = require('./db');
-const bot     = require('./bot');
-const cmd     = require('./commands');
-const asaas   = require('./asaas');
+const express   = require('express');
+const session   = require('express-session');
+const PgSession = require('connect-pg-simple')(session);
+const fetch     = require('node-fetch');
+const path      = require('path');
+const http      = require('http');
+const { Pool }  = require('pg');
+const db        = require('./db');
+const bot       = require('./bot');
+const cmd       = require('./commands');
+const asaas     = require('./asaas');
 
 const app        = express();
 const PORT       = process.env.PORT || 8080;
@@ -31,17 +33,28 @@ const SCOPES = [
 // → a sessão some após o login. Esta linha resolve.
 app.set('trust proxy', 1);
 
+// Pool separado para a session store (evita conflito com o pool principal)
+const sessionPool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false },
+});
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/admin-assets', express.static(path.join(__dirname, 'admin')));
 app.use(session({
+  store: new PgSession({
+    pool: sessionPool,
+    tableName: 'sessions',
+    createTableIfMissing: true,
+  }),
   secret: process.env.SESSION_SECRET || 'dev-secret-troque-em-producao',
   resave: false,
   saveUninitialized: false,
   cookie: {
     secure: BASE_URL.startsWith('https'),
     sameSite: 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000,
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 dias — persiste entre restarts
   },
 }));
 
@@ -134,6 +147,11 @@ app.get('/auth/callback', async (req, res) => {
     console.error('[auth/callback]', e);
     res.redirect('/?erro=interno');
   }
+});
+
+// Retorna dados do usuário logado (ou null se não logado) — usado pelo frontend
+app.get('/api/me', (req, res) => {
+  res.json(req.session?.streamer || null);
 });
 
 app.get('/sair', (req, res) => {
