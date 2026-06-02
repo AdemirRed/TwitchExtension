@@ -1,5 +1,6 @@
-const { Pool } = require('pg');
-const DEFAULT_SETTINGS = require('./settings.json');
+const { Pool }          = require('pg');
+const { encrypt, decrypt } = require('./crypto-util');
+const DEFAULT_SETTINGS  = require('./settings.json');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -61,25 +62,38 @@ async function init() {
   console.log('[DB] Tabelas prontas');
 }
 
+// getConfig / setConfig — tokens do bot também criptografados
 async function getConfig(chave) {
   const r = await q('SELECT valor FROM app_config WHERE chave=$1', [chave]);
-  return r.rows[0]?.valor ?? null;
+  const val = r.rows[0]?.valor ?? null;
+  return val ? decrypt(val) : null;
 }
 
 async function setConfig(chave, valor) {
   await q(`
     INSERT INTO app_config (chave, valor) VALUES ($1,$2)
     ON CONFLICT (chave) DO UPDATE SET valor=$2, updated_at=NOW()
-  `, [chave, valor]);
+  `, [chave, encrypt(valor)]);
+}
+
+// Converte row do banco: descriptografa tokens sensíveis
+function decryptStreamer(row) {
+  if (!row) return null;
+  return {
+    ...row,
+    access_token:  decrypt(row.access_token),
+    refresh_token: decrypt(row.refresh_token),
+  };
 }
 
 async function upsertStreamer({ twitch_id, login, display_name, access_token, refresh_token }) {
+  // Salva tokens criptografados
   await q(`
     INSERT INTO streamers (twitch_id, login, display_name, access_token, refresh_token, active)
     VALUES ($1,$2,$3,$4,$5,true)
     ON CONFLICT (twitch_id) DO UPDATE SET
       login=$2, display_name=$3, access_token=$4, refresh_token=$5, active=true
-  `, [twitch_id, login, display_name, access_token, refresh_token]);
+  `, [twitch_id, login, display_name, encrypt(access_token), encrypt(refresh_token)]);
 
   // Cria settings padrão se for o primeiro login
   await q(`
@@ -91,12 +105,12 @@ async function upsertStreamer({ twitch_id, login, display_name, access_token, re
 
 async function getStreamer(twitch_id) {
   const r = await q('SELECT * FROM streamers WHERE twitch_id=$1', [twitch_id]);
-  return r.rows[0] || null;
+  return decryptStreamer(r.rows[0]);
 }
 
 async function getActiveStreamers() {
   const r = await q('SELECT * FROM streamers WHERE active=true');
-  return r.rows;
+  return r.rows.map(decryptStreamer);
 }
 
 async function deactivateStreamer(twitch_id) {
