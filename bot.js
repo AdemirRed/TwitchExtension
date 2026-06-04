@@ -225,6 +225,9 @@ async function start() {
 
   // 5. ADS horária nos canais NÃO-premium
   iniciarAds();
+  
+  // 6. Relógio global de Mensagens Automáticas (Timers)
+  iniciarTimers();
 }
 
 // ── ADS automática (a cada 1h, só em canais não-premium) ──────────────────────
@@ -252,6 +255,43 @@ function iniciarAds() {
       console.error('[ADS] erro:', e.message);
     }
   }, 60 * 60 * 1000);
+}
+
+// ── Timers (Mensagens Automáticas por Canal) ──────────────────────────────────
+const timersEstado = {}; // { 'twitchId_timerId': minutos_passados }
+let clockGlobalTimer = null;
+
+function iniciarTimers() {
+  if (clockGlobalTimer) clearInterval(clockGlobalTimer);
+  
+  // Roda a cada 1 minuto exato
+  clockGlobalTimer = setInterval(async () => {
+    try {
+      const streamers = await db.getActiveStreamers();
+      for (const s of streamers) {
+        const settings = await getSettings(s.twitch_id);
+        const timers = settings.timers || [];
+        
+        for (const t of timers) {
+          if (!t.enabled) continue;
+          
+          const key = `${s.twitch_id}_${t.id}`;
+          timersEstado[key] = (timersEstado[key] || 0) + 1;
+          
+          const intervalo = parseInt(t.intervalo_min) || 15;
+          if (timersEstado[key] >= intervalo) {
+            timersEstado[key] = 0; // zera o contador
+            try { 
+              if (client) await client.say(`#${s.login}`, t.mensagem); 
+              emitLog(s.twitch_id, { ts: Date.now(), tipo: 'sistema', texto: `Timer enviado: ${t.mensagem}` });
+            } catch {}
+          }
+        }
+      }
+    } catch (e) {
+      console.error('[TIMERS] erro no relógio global:', e.message);
+    }
+  }, 60 * 1000);
 }
 
 async function reconectarComTokenNovo() {

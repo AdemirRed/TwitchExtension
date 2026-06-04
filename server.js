@@ -207,6 +207,16 @@ app.post('/api/settings', autenticadoAPI, async (req, res) => {
         premium_required: true,
       });
     }
+    
+    // Gating do plano grátis: máximo de timers
+    const LIMITE_TIMERS_FREE = 2;
+    if (novo.timers && novo.timers.length > LIMITE_TIMERS_FREE) {
+      return res.status(403).json({
+        ok: false,
+        erro: `Plano grátis permite até ${LIMITE_TIMERS_FREE} mensagens automáticas (timers). Você tem ${novo.timers.length}. Assine o Premium para ilimitados.`,
+        premium_required: true,
+      });
+    }
   }
 
   // Sincronizar Custo em Pontos com a Twitch (Custom Rewards)

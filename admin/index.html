@@ -175,6 +175,7 @@
   <div class="tab" data-tab="stream">📡 Stream</div>
   <div class="tab" data-tab="config">⚙️ Configurações</div>
   <div class="tab" data-tab="enquetes">📊 Enquetes</div>
+  <div class="tab" data-tab="timers">⏰ Timers</div>
   <div class="tab" data-tab="log">📋 Log ao vivo</div>
 </div>
 
@@ -624,6 +625,32 @@
   </a>
 </div>
 
+<!-- ── ABA TIMERS ────────────────────────────────────────────────────── -->
+<div class="page" id="tab-timers">
+  <div class="grid2">
+    <div class="card" style="grid-column:1/-1">
+      <div class="card-title">⏰ Mensagens Automáticas</div>
+      <p class="section-desc">O bot enviará estas mensagens no chat de tempos em tempos automaticamente.</p>
+      <div class="cmd-grid" id="timer-grid">Carregando...</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">➕ Criar Novo Timer</div>
+    <div class="grid2" style="gap:12px;margin-bottom:12px">
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Mensagem</label>
+        <textarea id="newTimerMsg" placeholder="Ex: Siga o canal nas redes sociais..." style="min-height:60px"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Intervalo (minutos)</label>
+        <input type="number" id="newTimerInterval" value="15" min="1" max="1440">
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="addTimer()">Criar Timer</button>
+  </div>
+</div>
+
 <!-- Modal de edição de comando -->
 <div class="modal-bg" id="modal-editar">
   <div class="modal">
@@ -698,6 +725,7 @@ async function carregarSettings() {
   S = await res.json();
   aplicarSettings();
   renderCmds();
+  renderTimers();
   document.getElementById('channelBadge').textContent = '#' + (S.channel || 'universo_redblack');
   document.getElementById('cooldownGlobal').value = (S.cooldown_ms || 10000) / 1000;
   carregarPremium();
@@ -885,6 +913,83 @@ function limparForm() {
   document.getElementById('newCooldown').value = 10;
   document.getElementById('newCusto').value = 0;
   document.getElementById('newPerm').value = 'todos';
+}
+
+// ── Timers ────────────────────────────────────────────────────────────────────
+function renderTimers() {
+  const grid = document.getElementById('timer-grid');
+  grid.innerHTML = '';
+  const timers = S.timers || [];
+  
+  timers.forEach(t => {
+    const card = document.createElement('div');
+    card.className = 'cmd-card' + (t.enabled ? ' active' : '');
+    card.innerHTML = `
+      <div class="cmd-card-header">
+        <span class="emoji">⏰</span>
+        <span class="name">A cada ${t.intervalo_min} min</span>
+        <div class="cmd-card-actions">
+          <label class="toggle">
+            <input type="checkbox" ${t.enabled?'checked':''} onchange="toggleTimer('${t.id}',this.checked)">
+            <span class="slider"></span>
+          </label>
+          <button class="btn btn-danger btn-sm" onclick="removerTimer('${t.id}')" title="Remover timer">✕</button>
+        </div>
+      </div>
+      <div class="cmd-msgs">${t.mensagem}</div>
+    `;
+    grid.appendChild(card);
+  });
+  if (!timers.length) {
+    grid.innerHTML = '<div style="color:var(--dim);font-size:13px;padding:10px">Nenhum timer ativo. Crie um abaixo!</div>';
+  }
+}
+
+async function addTimer() {
+  const mensagem = document.getElementById('newTimerMsg').value.trim();
+  const intervalo_min = parseInt(document.getElementById('newTimerInterval').value) || 15;
+  if (!mensagem) { showToast('Escreva a mensagem do timer', 'error'); return; }
+
+  S.timers = S.timers || [];
+  const LIMITE_TIMERS_FREE = 2;
+  
+  if (!ehPremium && S.timers.length >= LIMITE_TIMERS_FREE) {
+    if (confirm(`Plano grátis permite até ${LIMITE_TIMERS_FREE} timers ativos simultaneamente.\n\nQuer assinar o Premium para criar ilimitados?`)) {
+      window.location.href = '/premium';
+    }
+    return;
+  }
+
+  const novoTimer = {
+    id: 't_' + Date.now().toString(36) + Math.random().toString(36).substring(2,5),
+    mensagem,
+    intervalo_min,
+    enabled: true
+  };
+
+  S.timers.push(novoTimer);
+  const ok = await salvarSettings();
+  if (ok === false) { S.timers.pop(); return; }
+  
+  document.getElementById('newTimerMsg').value = '';
+  document.getElementById('newTimerInterval').value = 15;
+  renderTimers();
+}
+
+async function toggleTimer(id, enabled) {
+  const t = S.timers.find(x => x.id === id);
+  if (t) {
+    t.enabled = enabled;
+    await salvarSettings();
+    renderTimers();
+  }
+}
+
+async function removerTimer(id) {
+  if (!confirm('Remover este timer?')) return;
+  S.timers = S.timers.filter(x => x.id !== id);
+  await salvarSettings();
+  renderTimers();
 }
 
 // ── Testar comando ────────────────────────────────────────────────────────────
