@@ -216,6 +216,10 @@
         <label>Cooldown (segundos)</label>
         <input type="number" id="newCooldown" value="10" min="0" max="3600">
       </div>
+      <div class="form-group">
+        <label>Custo (Pontos da Twitch) <span style="color:var(--dim)">(Opcional)</span></label>
+        <input type="number" id="newCusto" value="0" min="0" max="1000000" placeholder="Ex: 500">
+      </div>
     </div>
     <div class="form-group" style="margin-bottom:12px">
       <label>Mensagens (separe com linha em branco para ter variações aleatórias)</label>
@@ -644,6 +648,10 @@
       <input type="number" id="modal-cooldown" min="0" max="3600">
     </div>
     <div class="form-group">
+      <label>Custo (Pontos da Twitch) <span style="color:var(--dim)">(0 = desativado)</span></label>
+      <input type="number" id="modal-custo" min="0" max="1000000">
+    </div>
+    <div class="form-group">
       <label>Mensagens (linha em branco = variação aleatória)</label>
       <textarea id="modal-msgs" style="min-height:120px"></textarea>
     </div>
@@ -772,6 +780,7 @@ function renderCmds() {
         <span class="name">${cmd}</span>
         <span class="chip">${permLabel(cfg.permissao)}</span>
         <span class="chip">⏱ ${(cfg.cooldown_ms||0)/1000}s</span>
+        ${cfg.custo_pontos ? `<span class="chip" style="color:var(--yellow);border-color:var(--yellow)">🪙 ${cfg.custo_pontos} pts</span>` : ''}
         <div class="cmd-card-actions">
           <label class="toggle">
             <input type="checkbox" ${cfg.enabled?'checked':''} onchange="toggleCmd('${cmd}',this.checked)">
@@ -812,6 +821,7 @@ function abrirModal(cmd) {
   document.getElementById('modal-emoji').value     = cfg.emoji || '❓';
   document.getElementById('modal-perm').value      = cfg.permissao || 'todos';
   document.getElementById('modal-cooldown').value  = (cfg.cooldown_ms || 0) / 1000;
+  document.getElementById('modal-custo').value     = cfg.custo_pontos || 0;
   document.getElementById('modal-msgs').value      = (cfg.mensagens || []).join('\n\n');
   document.getElementById('modal-editar').classList.add('open');
 }
@@ -825,10 +835,11 @@ async function salvarEdicao() {
   const emoji    = document.getElementById('modal-emoji').value.trim() || '❓';
   const perm     = document.getElementById('modal-perm').value;
   const cooldown = parseInt(document.getElementById('modal-cooldown').value) * 1000;
+  const custo    = parseInt(document.getElementById('modal-custo').value) || 0;
   const rawMsgs  = document.getElementById('modal-msgs').value.trim();
   const mensagens = rawMsgs.split(/\n\n+/).map(s => s.trim()).filter(Boolean);
 
-  S.commands[cmd] = { ...S.commands[cmd], emoji, permissao: perm, cooldown_ms: cooldown, mensagens };
+  S.commands[cmd] = { ...S.commands[cmd], emoji, permissao: perm, cooldown_ms: cooldown, custo_pontos: custo, mensagens };
   await salvarSettings();
   fecharModal();
   renderCmds();
@@ -845,6 +856,7 @@ async function addCmd() {
   const emoji   = document.getElementById('newEmoji').value.trim() || '❓';
   const perm    = document.getElementById('newPerm').value;
   const cooldown= parseInt(document.getElementById('newCooldown').value) * 1000;
+  const custo   = parseInt(document.getElementById('newCusto').value) || 0;
   const rawMsg  = document.getElementById('newMsg').value.trim();
   if (!cmd.startsWith('!')) { showToast('O comando deve começar com !', 'error'); return; }
   if (!rawMsg) { showToast('Escreva pelo menos uma mensagem', 'error'); return; }
@@ -861,7 +873,7 @@ async function addCmd() {
   }
 
   const mensagens = rawMsg.split(/\n\n+/).map(s => s.trim()).filter(Boolean);
-  S.commands[cmd] = { enabled: true, emoji, permissao: perm, cooldown_ms: cooldown, mensagens };
+  S.commands[cmd] = { enabled: true, emoji, permissao: perm, cooldown_ms: cooldown, custo_pontos: custo, mensagens };
   const ok = await salvarSettings();
   if (ok === false) { delete S.commands[cmd]; return; }
   limparForm();
@@ -871,6 +883,7 @@ async function addCmd() {
 function limparForm() {
   ['newCmd','newEmoji','newMsg'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('newCooldown').value = 10;
+  document.getElementById('newCusto').value = 0;
   document.getElementById('newPerm').value = 'todos';
 }
 

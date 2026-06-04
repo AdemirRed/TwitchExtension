@@ -25,6 +25,7 @@ const SCOPES = [
   'channel:manage:broadcast','clips:edit','user:read:broadcast',
   'moderator:manage:shoutouts','channel:manage:polls',
   'channel:read:polls','channel:manage:predictions','channel:read:predictions',
+  'channel:manage:redemptions','channel:read:redemptions',
 ].join(' ');
 
 // ── Middleware ────────────────────────────────────────────────────────────────
@@ -205,6 +206,50 @@ app.post('/api/settings', autenticadoAPI, async (req, res) => {
         erro: `Plano grátis permite até ${LIMITE_CUSTOM_FREE} comandos customizados. Você tem ${custom.length}. Assine o Premium para ilimitados.`,
         premium_required: true,
       });
+    }
+  }
+
+  // Sincronizar Custo em Pontos com a Twitch (Custom Rewards)
+  const antigo = await db.getSettings(twitchId);
+  const streamer = await db.getStreamer(twitchId);
+  if (streamer?.access_token) {
+    // 1. Cria ou atualiza as recompensas dos comandos mantidos
+    for (const [cmdName, cfg] of Object.entries(novo.commands || {})) {
+      const custoNovo = parseInt(cfg.custo_pontos) || 0;
+      const custoAntigo = parseInt(antigo.commands?.[cmdName]?.custo_pontos) || 0;
+      const rewardId = antigo.commands?.[cmdName]?.reward_id;
+      
+      cfg.reward_id = rewardId; // Mantém o ID pro novo settings
+
+      if (custoNovo > 0 && (custoNovo !== custoAntigo || !cfg.reward_id)) {
+        if (cfg.reward_id) {
+          // Atualiza recompensa existente
+          await cmd.twitchAPI('PATCH', `/channel_points/custom_rewards?broadcaster_id=${twitchId}&id=${cfg.reward_id}`, {
+            cost: custoNovo, title: `Comando ${cmdName}`, is_user_input_required: true,
+          }, streamer.access_token, CLIENT_ID);
+        } else {
+          // Cria nova recompensa
+          const r = await cmd.twitchAPI('POST', `/channel_points/custom_rewards?broadcaster_id=${twitchId}`, {
+            title: `Comando ${cmdName}`,
+            cost: custoNovo,
+            prompt: `Digite a sua mensagem para o comando (ou digite apenas ${cmdName})`,
+            is_user_input_required: true,
+            background_color: '#9147ff'
+          }, streamer.access_token, CLIENT_ID);
+          if (r.data?.[0]) cfg.reward_id = r.data[0].id;
+        }
+      } else if (custoNovo === 0 && cfg.reward_id) {
+        // Custo removido, apaga recompensa
+        await cmd.twitchAPI('DELETE', `/channel_points/custom_rewards?broadcaster_id=${twitchId}&id=${cfg.reward_id}`, null, streamer.access_token, CLIENT_ID);
+        delete cfg.reward_id;
+      }
+    }
+
+    // 2. Apaga as recompensas de comandos que foram deletados
+    for (const [cmdName, cfg] of Object.entries(antigo.commands || {})) {
+      if (!novo.commands?.[cmdName] && cfg.reward_id) {
+        await cmd.twitchAPI('DELETE', `/channel_points/custom_rewards?broadcaster_id=${twitchId}&id=${cfg.reward_id}`, null, streamer.access_token, CLIENT_ID);
+      }
     }
   }
 

@@ -136,33 +136,44 @@ async function onMessage(channel, tags, message, self) {
   const redes = ['discord','instagram','youtube','twitter'];
   if (redes.includes(cmdName.replace('!',''))) { cmd.handleSocial(say, cmdName.replace('!',''), settings); return; }
 
-  // ── Comandos customizados ─────────────────────────────────────────────────
-  const cmdCfg = settings.commands?.[cmdName];
+  // ── Comandos customizados (ou via Channel Points) ───────────────────────────
+  let targetCmdName = cmdName;
+  const rewardId = tags['custom-reward-id'];
+  
+  if (rewardId) {
+    // Procura se algum comando possui esse reward_id
+    const cmdVinculado = Object.entries(settings.commands || {}).find(([_, cfg]) => cfg.reward_id === rewardId);
+    if (cmdVinculado) {
+      targetCmdName = cmdVinculado[0];
+    }
+  }
+
+  const cmdCfg = settings.commands?.[targetCmdName];
   if (!cmdCfg?.enabled) return;
   if (!cmd.temPermissao(tags, cmdCfg.permissao || 'todos')) return;
-  if (emCooldown(usuario, cmdName, settings)) return;
+  if (emCooldown(usuario, targetCmdName, settings)) return;
 
-  if (cmdName === '!leitar') {
+  if (targetCmdName === '!leitar') {
     let alvo = cmd.parsearAlvo(msg);
     if (!alvo) alvo = await cmd.viewerAleatorio(broadcasterId, usuario, token, CLIENT_ID);
     if (!alvo) { say(`@${usuario} não tem ninguém pra leitar... 👀`); return; }
     if (alvo.toLowerCase() === usuario.toLowerCase()) {
       say(`@${usuario} tentou se leitar... LUL`);
-      setCooldown(usuario, cmdName);
+      setCooldown(usuario, targetCmdName);
       return;
     }
     const texto = cmd.mensagemAleatoria(cmdCfg, usuario, alvo);
     say(texto);
-    setCooldown(usuario, cmdName);
-    log('cmd', texto, { cmd: cmdName, usuario, alvo });
+    setCooldown(usuario, targetCmdName);
+    log('cmd', texto, { cmd: targetCmdName, usuario, alvo });
     return;
   }
 
   const texto = cmd.mensagemAleatoria(cmdCfg, usuario, null);
   if (!texto) return;
   say(texto);
-  setCooldown(usuario, cmdName);
-  log('cmd', texto, { cmd: cmdName, usuario });
+  setCooldown(usuario, targetCmdName);
+  log('cmd', texto, { cmd: targetCmdName, usuario });
 }
 
 async function joinChannel(login) {

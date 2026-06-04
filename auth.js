@@ -40,6 +40,8 @@ const SCOPES = [
   'channel:read:polls',
   'channel:manage:predictions',
   'channel:read:predictions',
+  'channel:manage:redemptions',
+  'channel:read:redemptions',
 ].join('+');
 
 if (!CLIENT_ID || !CLIENT_SECRET) {
