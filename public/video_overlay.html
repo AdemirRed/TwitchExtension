@@ -2,96 +2,89 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Overlay - Efeitos</title>
+  <title>ExplorarBot · Overlay</title>
+  <link rel="stylesheet" href="css/style.css">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Inter', 'Segoe UI', sans-serif; background: transparent; color: #efeff1; overflow: hidden; }
-    .overlay-container { position: fixed; inset: 0; pointer-events: none; }
-    .effect-layer { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
-    .effect-text { font-size: 64px; font-weight: 900; text-shadow: 0 0 20px rgba(145,71,255,0.8), 2px 2px 0 #000; opacity: 0; pointer-events: none; }
-    .effect-text.visible { animation: popIn 0.4s forwards, fadeOut 0.5s 2.5s forwards; }
-    .confetti-piece { position: absolute; width: 10px; height: 10px; border-radius: 2px; animation: confettiFall 3s ease-in forwards; }
-    #dev-tools { display: none; position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%); flex-wrap: wrap; gap: 6px; background: rgba(0,0,0,0.6); padding: 8px 12px; border-radius: 8px; }
-    #dev-tools button { background: #2a2a2d; border: 1px solid #9147ff; color: #efeff1; border-radius: 4px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
-    @keyframes popIn { 0%{opacity:0;transform:scale(0.3) rotate(-5deg)} 60%{opacity:1;transform:scale(1.2) rotate(2deg)} 100%{opacity:1;transform:scale(1) rotate(0deg)} }
-    @keyframes fadeOut { to{opacity:0;transform:scale(0.8)} }
-    @keyframes confettiFall { 0%{transform:translateY(-100px) rotate(0deg);opacity:1} 100%{transform:translateY(110vh) rotate(720deg);opacity:0} }
+    body { background: transparent; }
+
+    /* Dev tools */
+    #dev-tools {
+      display: none;
+      position: fixed;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      flex-direction: column;
+      gap: 5px;
+      background: rgba(0,0,0,.75);
+      padding: 8px 12px;
+      border-radius: 10px;
+      z-index: 9999;
+      max-width: 340px;
+    }
+    #dev-tools p { font-size: 9px; color: #5a5a64; text-align: center; margin-bottom: 2px; }
+    .dev-row { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
+    #dev-tools button {
+      background: #1f1f23;
+      border: 1px solid #9147ff;
+      color: #efeff1;
+      border-radius: 5px;
+      padding: 4px 9px;
+      font-size: 10px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    #dev-tools button:hover { background: #2a2a2d; }
   </style>
 </head>
 <body>
   <div class="overlay-container">
+
+    <!-- Barra do Hype Train (topo) -->
+    <div class="hype-train-bar hidden" id="hype-train-bar">
+      <div class="hype-train-fill" id="hype-train-fill" style="width:0%"></div>
+    </div>
+    <div class="hype-train-badge hidden" id="hype-train-badge">🚂 HYPE TRAIN</div>
+
+    <!-- Camada de efeito central (comandos de chat) -->
     <div class="effect-layer" id="effect-layer">
       <span class="effect-text" id="effect-text"></span>
     </div>
+
+    <!-- Stack de alertas (canto superior direito) -->
+    <div class="alert-stack" id="alert-stack"></div>
+
   </div>
+
+  <!-- Dev Tools (apenas modo local) -->
   <div id="dev-tools">
-    <button data-cmd="!hidrate">!hidrate</button>
-    <button data-cmd="!alongar">!alongar</button>
-    <button data-cmd="!skill">!skill</button>
-    <button data-cmd="!hype">!hype</button>
-    <button data-cmd="!lurk">!lurk</button>
+    <p>DEV — simular eventos</p>
+    <div class="dev-row">
+      <button data-cmd="!hidrate">💧 !hidrate</button>
+      <button data-cmd="!alongar">🧘 !alongar</button>
+      <button data-cmd="!skill">💀 !skill</button>
+      <button data-cmd="!hype">🔥 !hype</button>
+      <button data-cmd="!lurk">👻 !lurk</button>
+    </div>
+    <div class="dev-row">
+      <button data-alert="sub">💜 Sub</button>
+      <button data-alert="resub">💜 Resub</button>
+      <button data-alert="gift">🎁 Gift</button>
+      <button data-alert="cheer">💎 Cheer</button>
+      <button data-alert="raid">🚀 Raid</button>
+      <button data-alert="pts">🪙 Ch.Pts</button>
+    </div>
+    <div class="dev-row">
+      <button data-hype="start">🚂 Hype start</button>
+      <button data-hype="progress">📈 Hype +30%</button>
+      <button data-hype="end">🎉 Hype end</button>
+    </div>
   </div>
 
   <script src="https://extension-files.twitch.tv/helper/v1/twitch-ext.min.js"></script>
-  <script>
-    var EFFECTS = {
-      '!hidrate':  { text: '💧 HIDRATE!',    bg: 'rgba(29,161,242,0.15)',  confetti: false },
-      '!alongar':  { text: '🧘 ALONGAR!',    bg: 'rgba(67,181,129,0.15)',  confetti: false },
-      '!skill':    { text: '💀 SKILL ISSO!', bg: 'rgba(240,71,71,0.15)',   confetti: false },
-      '!hype':     { text: '🔥 HYPE!',       bg: 'rgba(244,160,32,0.15)',  confetti: true  },
-      '!lurk':     { text: '👻 FOI DE LURK', bg: 'rgba(114,137,218,0.15)', confetti: false }
-    };
-
-    var effectLayer = document.getElementById('effect-layer');
-    var effectText  = document.getElementById('effect-text');
-    var hideTimer   = null;
-
-    function showEffect(cmd) {
-      var fx = EFFECTS[cmd];
-      if (!fx) return;
-      if (hideTimer) clearTimeout(hideTimer);
-      document.body.style.background = fx.bg;
-      effectText.textContent = fx.text;
-      effectText.className = 'effect-text visible';
-      if (fx.confetti) spawnConfetti();
-      hideTimer = setTimeout(function() {
-        effectText.className = 'effect-text';
-        document.body.style.background = 'transparent';
-      }, 3000);
-    }
-
-    function spawnConfetti() {
-      var colors = ['#9147ff','#f0e6ff','#f4a020','#43b581','#f04747'];
-      for (var i = 0; i < 60; i++) {
-        (function() {
-          var el = document.createElement('div');
-          el.className = 'confetti-piece';
-          el.style.left = Math.random() * 100 + 'vw';
-          el.style.background = colors[Math.floor(Math.random() * colors.length)];
-          el.style.animationDuration = (2 + Math.random() * 2) + 's';
-          el.style.animationDelay = Math.random() * 0.5 + 's';
-          el.style.transform = 'rotate(' + Math.floor(Math.random() * 360) + 'deg)';
-          effectLayer.appendChild(el);
-          el.addEventListener('animationend', function(){ el.remove(); });
-        })();
-      }
-    }
-
-    if (window.Twitch && window.Twitch.ext) {
-      window.Twitch.ext.onAuthorized(function() {
-        window.Twitch.ext.listen('broadcast', function(target, contentType, msg) {
-          try { var d = JSON.parse(msg); if (d.type === 'command') showEffect(d.cmd); } catch(e) {}
-        });
-      });
-    } else {
-      var p = new URLSearchParams(window.location.search);
-      if (p.get('cmd')) showEffect(p.get('cmd'));
-      document.querySelectorAll('[data-cmd]').forEach(function(btn) {
-        btn.onclick = function(){ showEffect(btn.dataset.cmd); };
-      });
-      document.getElementById('dev-tools').style.display = 'flex';
-    }
-  </script>
+  <script src="js/twitch-ext.js"></script>
+  <script src="js/alerts.js"></script>
+  <script src="js/hype-train.js"></script>
+  <script src="js/overlay.js"></script>
 </body>
 </html>

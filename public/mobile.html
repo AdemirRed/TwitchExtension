@@ -3,73 +3,158 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mobile - Comandos</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Inter', 'Segoe UI', sans-serif; background: #18181b; color: #efeff1; overflow: hidden; }
-    .mobile-container { padding: 12px; }
-    .mobile-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #3a3a3d; }
-    .mobile-header .dot { width: 8px; height: 8px; border-radius: 50%; background: #9147ff; animation: pulse 1.5s infinite; }
-    .mobile-header span { font-size: 13px; font-weight: 700; color: #adadb8; text-transform: uppercase; letter-spacing: 0.5px; }
-    .cmd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .cmd-card { background: #1f1f23; border-radius: 8px; padding: 14px 10px; text-align: center; cursor: pointer; border: 1px solid #2a2a2d; transition: border-color 0.2s, transform 0.1s; }
-    .cmd-card:active { transform: scale(0.96); }
-    .cmd-card .icon { font-size: 28px; display: block; margin-bottom: 6px; }
-    .cmd-card .name { font-size: 12px; font-weight: 700; color: #9147ff; }
-    .cmd-card .desc { font-size: 10px; color: #5a5a64; margin-top: 2px; }
-    .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: #9147ff; color: #fff; padding: 8px 20px; border-radius: 20px; font-size: 13px; font-weight: 700; opacity: 0; transition: opacity 0.3s; white-space: nowrap; pointer-events: none; }
-    .toast.show { opacity: 1; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-  </style>
+  <title>ExplorarBot · Mobile</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <div class="mobile-container">
+
+    <!-- Header -->
     <div class="mobile-header">
-      <div class="dot"></div>
-      <span>Comandos</span>
+      <div class="mobile-header-left">
+        <div class="dot"></div>
+        <span id="mobile-channel">ExplorarBot</span>
+      </div>
+      <span class="role-badge viewer" id="mobile-role-badge">viewer</span>
     </div>
+
+    <!-- Mini Poll (oculta por padrão) -->
+    <div id="mini-poll-container" style="display:none"></div>
+
+    <!-- Seção: Comandos -->
+    <div class="mobile-section-title">🎮 Comandos</div>
     <div class="cmd-grid" id="cmd-grid"></div>
+
+    <!-- Seção: Recompensas Channel Points -->
+    <div class="mobile-section-title" id="rewards-section-title" style="display:none">🪙 Recompensas do Canal</div>
+    <div class="cmd-grid" id="rewards-grid" style="display:none"></div>
+
   </div>
+
   <div class="toast" id="toast"></div>
 
   <script src="https://extension-files.twitch.tv/helper/v1/twitch-ext.min.js"></script>
+  <script src="js/twitch-ext.js"></script>
+  <script src="js/alerts.js"></script>
+  <script src="js/polls.js"></script>
   <script>
-    var CMDS = [
-      { cmd: '!hidrate', icon: '💧', desc: 'Lembrar de beber agua' },
-      { cmd: '!alongar', icon: '🧘', desc: 'Hora de se alongar' },
-      { cmd: '!skill',   icon: '💀', desc: 'Culpar a skill' },
-      { cmd: '!hype',    icon: '🔥', desc: 'Hype na chat!' },
-      { cmd: '!lurk',    icon: '👻', desc: 'Entrar em modo lurk' }
-    ];
-
-    var grid  = document.getElementById('cmd-grid');
-    var toast = document.getElementById('toast');
-    var toastTimer;
-    var auth  = null;
+    const BACKEND = 'https://explorarbot.up.railway.app';
+    const grid       = document.getElementById('cmd-grid');
+    const rewardsGrid = document.getElementById('rewards-grid');
+    const toast       = document.getElementById('toast');
+    let toastTimer, auth = null;
 
     function showToast(msg) {
       clearTimeout(toastTimer);
       toast.textContent = msg;
       toast.classList.add('show');
-      toastTimer = setTimeout(function(){ toast.classList.remove('show'); }, 1800);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
     }
 
-    if (window.Twitch && window.Twitch.ext) {
-      window.Twitch.ext.onAuthorized(function(a){ auth = a; });
-    }
-
-    CMDS.forEach(function(item) {
-      var card = document.createElement('div');
-      card.className = 'cmd-card';
-      card.innerHTML = '<span class="icon">' + item.icon + '</span><div class="name">' + item.cmd + '</div><div class="desc">' + item.desc + '</div>';
-      card.onclick = function() {
-        showToast(item.icon + ' ' + item.cmd + ' enviado!');
-        if (window.Twitch && window.Twitch.ext) {
-          window.Twitch.ext.send('broadcast', 'application/json', JSON.stringify({ type: 'command', cmd: item.cmd, user: (auth && auth.userId) || 'mobile_user' }));
-        }
+    // ── Role badge ──
+    function setRoleBadge(role) {
+      const el = document.getElementById('mobile-role-badge');
+      const map = {
+        broadcaster: { label: '🎮 Streamer', cls: 'mod' },
+        moderator:   { label: '🔨 Mod',      cls: 'mod' },
+        subscriber:  { label: '💜 Sub',      cls: 'sub' },
+        vip:         { label: '⭐ VIP',      cls: 'vip' },
+        viewer:      { label: '👁 Viewer',   cls: 'viewer' },
       };
-      grid.appendChild(card);
+      const def = map[role] || map.viewer;
+      el.textContent = def.label;
+      el.className = `role-badge ${def.cls}`;
+    }
+
+    // ── Renderizar comandos ──
+    function renderCmds(cmds, rewardMap) {
+      grid.innerHTML = '';
+      cmds.forEach(({ cmd, emoji, desc, perm }) => {
+        const pts = rewardMap?.[cmd];
+        const card = document.createElement('div');
+        card.className = 'cmd-card';
+        card.id = `cmd-card-${cmd.replace(/[^a-z0-9]/gi, '')}`;
+        card.innerHTML = `
+          ${pts ? `<span class="pts-chip">🪙${pts.toLocaleString('pt-BR')}</span>` : ''}
+          <span class="icon">${emoji || '🎮'}</span>
+          <div class="name">${escHtml(cmd)}</div>
+          <div class="desc">${escHtml(desc || perm || '')}</div>
+        `;
+        card.onclick = () => {
+          showToast(`${emoji || ''} ${cmd} enviado!`);
+          TwitchExt.send('broadcast', 'application/json', JSON.stringify({
+            type: 'command', cmd, user: auth?.userId || 'mobile_user'
+          }));
+        };
+        grid.appendChild(card);
+      });
+    }
+
+    // ── Renderizar recompensas de Channel Points ──
+    function renderRewards(rewards) {
+      if (!rewards?.length) return;
+      rewardsGrid.style.display = 'grid';
+      document.getElementById('rewards-section-title').style.display = 'block';
+      rewardsGrid.innerHTML = '';
+      rewards.forEach(r => {
+        const card = document.createElement('div');
+        card.className = 'cmd-card';
+        card.id = `reward-card-${r.id || r.title?.replace(/\s/g, '')}`;
+        card.innerHTML = `
+          <span class="pts-chip">🪙${(r.cost || 0).toLocaleString('pt-BR')}</span>
+          <span class="icon">${r.icon || '🪙'}</span>
+          <div class="name" style="font-size:10px">${escHtml(r.title)}</div>
+        `;
+        card.onclick = () => showToast(`🪙 ${r.title} — resgate no chat!`);
+        rewardsGrid.appendChild(card);
+      });
+    }
+
+    // ── PubSub para poll mobile ──
+    function conectarPubSub() {
+      TwitchExt.listen('broadcast', (target, contentType, raw) => {
+        let msg;
+        try { msg = JSON.parse(raw); } catch { return; }
+        if (['poll_create','poll_update','poll_complete'].includes(msg.type)) {
+          PollsSystem.onPollEvent({ type: msg.type, data: msg.data || msg });
+        }
+        if (['sub','cheer','raid'].includes(msg.type) && navigator.vibrate) {
+          navigator.vibrate(msg.type === 'raid' ? [200,100,200] : 80);
+        }
+      });
+    }
+
+    // ── Init ──
+    PollsSystem.setMiniPollEl(document.getElementById('mini-poll-container'));
+
+    TwitchExt.onAuthorized(a => {
+      auth = a;
+      setRoleBadge(TwitchExt.getViewer().role);
+
+      fetch(`${BACKEND}/api/extension/${a.channelId}/commands`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.ok) {
+            if (data.canal) document.getElementById('mobile-channel').textContent = data.canal;
+            renderCmds(data.commands || [], data.reward_map);
+            renderRewards(data.rewards || []);
+          }
+        })
+        .catch(() => {
+          renderCmds([
+            { cmd: '!hidrate', emoji: '💧', desc: 'Beber água' },
+            { cmd: '!hype',    emoji: '🔥', desc: 'Hype!' },
+          ]);
+        });
+
+      conectarPubSub();
     });
+
+    function escHtml(str) {
+      return String(str || '').replace(/[&<>"']/g, c =>
+        ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])
+      );
+    }
   </script>
 </body>
 </html>

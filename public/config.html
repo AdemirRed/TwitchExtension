@@ -2,73 +2,148 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Configurar ExplorarBot</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ExplorarBot · Configurações</title>
+  <link rel="stylesheet" href="css/style.css">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { width: 100%; height: 100%; }
-    body {
-      font-family: 'Segoe UI', system-ui, Arial, sans-serif;
-      background: #0e0e10;
-      color: #efeff1;
-      padding: 24px;
-    }
-    .box { max-width: 480px; text-align: center; margin: 0 auto; }
-    .logo {
-      width: 64px; height: 64px; background: #9147ff; border-radius: 16px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 32px; margin: 0 auto 20px;
-    }
-    h1 { font-size: 22px; font-weight: 800; margin-bottom: 10px; }
-    .desc { font-size: 14px; color: #adadb8; line-height: 1.6; margin-bottom: 24px; }
-    .steps {
-      text-align: left; background: #18181b; border: 1px solid #2a2a2d;
-      border-radius: 12px; padding: 20px; margin-bottom: 24px;
-    }
-    .step { display: flex; gap: 12px; align-items: flex-start; padding: 8px 0; }
-    .num {
-      flex-shrink: 0; width: 24px; height: 24px; background: #9147ff;
-      border-radius: 50%; display: flex; align-items: center; justify-content: center;
-      font-size: 12px; font-weight: 800;
-    }
-    .step-txt { font-size: 13px; color: #adadb8; padding-top: 2px; }
-    .btn {
-      background: #9147ff; color: #fff; border: none; border-radius: 8px;
-      padding: 14px 32px; font-size: 15px; font-weight: 800; cursor: pointer;
-      text-decoration: none; display: inline-block; transition: background .2s;
-    }
-    .btn:hover { background: #772ce8; }
-    .small { font-size: 12px; color: #5a5a64; margin-top: 16px; }
+    body { background: #0e0e10; overflow-y: auto; }
   </style>
 </head>
 <body>
-  <div class="box">
-    <div class="logo">&#127918;</div>
-    <h1>Configure o ExplorarBot</h1>
-    <p class="desc">Toda a configuracao - comandos, moderacao, enquetes e mais - e feita no painel completo do ExplorarBot.</p>
+  <div class="config-container">
 
-    <div class="steps">
-      <div class="step">
-        <div class="num">1</div>
-        <div class="step-txt">Clique no botao abaixo para abrir o painel</div>
-      </div>
-      <div class="step">
-        <div class="num">2</div>
-        <div class="step-txt">Entre com sua conta da Twitch (login rapido e seguro)</div>
-      </div>
-      <div class="step">
-        <div class="num">3</div>
-        <div class="step-txt">Ative comandos, crie zoeiras e o bot entra no seu canal automaticamente</div>
+    <!-- Logo -->
+    <div class="config-logo">
+      <div class="config-logo-icon">🎮</div>
+      <div class="config-logo-text">
+        <h1>ExplorarBot</h1>
+        <p>Configurações da extensão</p>
       </div>
     </div>
 
-    <a class="btn" href="https://explorarbot.up.railway.app/painel" target="_blank" rel="noopener">
-      Abrir painel de configuracao
+    <!-- Seção: Alertas -->
+    <div class="config-section">
+      <div class="config-section-title">🔔 Alertas ao Vivo</div>
+
+      <div class="toggle-row">
+        <div class="toggle-row-info">
+          <div class="toggle-row-label">💜 Sub / Resub / Gift Sub</div>
+          <div class="toggle-row-desc">Alert animado no overlay quando alguém se inscreve</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="cfg-alert-sub" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <div class="toggle-row-info">
+          <div class="toggle-row-label">💎 Cheer (Bits no chat)</div>
+          <div class="toggle-row-desc">Alert e confetti quando alguém usa bits</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="cfg-alert-cheer" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <div class="toggle-row-info">
+          <div class="toggle-row-label">🚀 Raid</div>
+          <div class="toggle-row-desc">Alert especial quando você recebe um raid</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="cfg-alert-raid" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <div class="toggle-row-info">
+          <div class="toggle-row-label">🪙 Channel Points</div>
+          <div class="toggle-row-desc">Mostrar quando viewer resgatar pontos do canal</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="cfg-alert-pts" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <div class="toggle-row-info">
+          <div class="toggle-row-label">🚂 Hype Train</div>
+          <div class="toggle-row-desc">Barra de progresso no topo do overlay</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="cfg-hype-train" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Seção: Painel e Mobile -->
+    <div class="config-section">
+      <div class="config-section-title">📱 Painel & Mobile</div>
+
+      <div class="toggle-row">
+        <div class="toggle-row-info">
+          <div class="toggle-row-label">🗳️ Enquetes ao vivo</div>
+          <div class="toggle-row-desc">Exibir polls ativas na aba do painel</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="cfg-show-polls" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <div class="toggle-row-info">
+          <div class="toggle-row-label">🔮 Previsões ao vivo</div>
+          <div class="toggle-row-desc">Exibir predictions ativas na aba do painel</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="cfg-show-pred" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <div class="toggle-row-info">
+          <div class="toggle-row-label">📢 Feed de alertas no painel</div>
+          <div class="toggle-row-desc">Mostrar feed de subs/cheers/raids na aba Canal</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="cfg-feed-panel" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Seção: Mapeamento Channel Points → Efeito -->
+    <div class="config-section">
+      <div class="config-section-title">🪙 Channel Points → Efeitos</div>
+      <p style="font-size:10px;color:var(--text-muted);margin-bottom:10px">
+        Vincule suas recompensas de pontos do canal a efeitos visuais no overlay.
+      </p>
+      <div id="reward-map-list">
+        <p style="font-size:11px;color:var(--text-muted)">Carregando recompensas…</p>
+      </div>
+    </div>
+
+    <!-- Salvar -->
+    <button class="save-btn" id="save-btn" onclick="salvarConfig()">💾 Salvar Configurações</button>
+    <div class="save-status" id="save-status"></div>
+
+    <!-- Link para painel completo -->
+    <a class="ext-link" href="https://explorarbot.up.railway.app/painel" target="_blank" rel="noopener">
+      ⚙️ Abrir painel completo (comandos, enquetes…)
+      <span>↗</span>
     </a>
 
-    <p class="small">O painel abre em uma nova aba. Apos configurar, volte aqui e ative a extensao.</p>
   </div>
 
   <script src="https://extension-files.twitch.tv/helper/v1/twitch-ext.min.js"></script>
+  <script src="js/twitch-ext.js"></script>
+  <script src="js/config.js"></script>
 </body>
 </html>

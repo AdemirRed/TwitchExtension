@@ -3,68 +3,92 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Painel - Comandos</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Inter', 'Segoe UI', sans-serif; background: transparent; color: #efeff1; overflow: hidden; }
-    .panel-container { background: #18181b; width: 100%; height: 300px; display: flex; flex-direction: column; padding: 12px; }
-    .panel-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; border-bottom: 1px solid #3a3a3d; padding-bottom: 8px; }
-    .panel-header .dot { width: 8px; height: 8px; border-radius: 50%; background: #9147ff; animation: pulse 1.5s infinite; }
-    .panel-header h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #adadb8; }
-    .command-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
-    .command-item { background: #1f1f23; border-left: 3px solid #9147ff; border-radius: 4px; padding: 8px 10px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; animation: slideIn 0.3s ease; }
-    .command-item .cmd-name { color: #9147ff; font-weight: 700; }
-    .command-item .cmd-user { color: #adadb8; font-size: 11px; }
-    .no-commands { text-align: center; color: #5a5a64; font-size: 12px; margin-top: 30px; line-height: 1.6; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-    @keyframes slideIn { from{opacity:0;transform:translateX(-10px)} to{opacity:1;transform:translateX(0)} }
-  </style>
+  <title>ExplorarBot · Painel</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <div class="panel-container">
+
+    <!-- Cabeçalho com título + role badge -->
     <div class="panel-header">
-      <div class="dot"></div>
-      <h2>Comandos ao Vivo</h2>
+      <div class="panel-title">
+        <div class="dot"></div>
+        <h2 id="panel-title-text">ExplorarBot</h2>
+      </div>
+      <span class="role-badge viewer" id="role-badge">viewer</span>
     </div>
-    <div class="command-list" id="command-list"></div>
+
+    <!-- Barra de abas -->
+    <nav class="tab-bar" role="tablist">
+      <button class="tab-btn active" data-tab="tab-cmds"     title="Comandos"    aria-label="Comandos">🎮</button>
+      <button class="tab-btn"        data-tab="tab-canal"    title="Canal"       aria-label="Canal">📡</button>
+      <button class="tab-btn"        data-tab="tab-poll"     title="Enquetes"    aria-label="Enquetes">🗳️</button>
+      <button class="tab-btn"        data-tab="tab-pred"     title="Previsões"   aria-label="Previsões">🔮</button>
+      <button class="tab-btn"        data-tab="tab-rewards"  title="Recompensas" aria-label="Recompensas">🪙</button>
+    </nav>
+
+    <!-- Conteúdo das abas -->
+    <div class="tab-content">
+
+      <!-- ABA 1: Comandos -->
+      <div class="tab-pane active" id="tab-cmds" role="tabpanel">
+        <div class="command-list" id="command-list">
+          <p class="no-commands">Carregando comandos… ⏳</p>
+        </div>
+      </div>
+
+      <!-- ABA 2: Canal -->
+      <div class="tab-pane" id="tab-canal" role="tabpanel">
+        <div class="canal-card" id="canal-info">
+          <div class="game-name" id="canal-game">Carregando…</div>
+          <div class="stream-title" id="canal-title">—</div>
+          <div class="stat-row">
+            <div class="stat-chip">
+              <div class="val" id="stat-viewers">—</div>
+              <div class="lbl">👁 viewers</div>
+            </div>
+            <div class="stat-chip">
+              <div class="val" id="stat-subs">—</div>
+              <div class="lbl">💜 subs</div>
+            </div>
+            <div class="stat-chip">
+              <div class="val" id="stat-uptime">—</div>
+              <div class="lbl">⏱ uptime</div>
+            </div>
+          </div>
+        </div>
+        <div class="recent-alerts">Feed ao vivo</div>
+        <div id="alert-feed"></div>
+      </div>
+
+      <!-- ABA 3: Enquetes -->
+      <div class="tab-pane" id="tab-poll" role="tabpanel">
+        <div id="poll-pane">
+          <p class="no-poll">Nenhuma enquete ativa no momento.</p>
+        </div>
+      </div>
+
+      <!-- ABA 4: Previsões -->
+      <div class="tab-pane" id="tab-pred" role="tabpanel">
+        <div id="pred-pane">
+          <p class="no-poll">Nenhuma previsão ativa no momento.</p>
+        </div>
+      </div>
+
+      <!-- ABA 5: Recompensas Channel Points -->
+      <div class="tab-pane" id="tab-rewards" role="tabpanel">
+        <div id="rewards-list">
+          <p class="no-commands">Carregando recompensas… ⏳</p>
+        </div>
+      </div>
+
+    </div>
   </div>
 
   <script src="https://extension-files.twitch.tv/helper/v1/twitch-ext.min.js"></script>
-  <script>
-    var BACKEND = 'https://explorarbot.up.railway.app';
-    var PERM_LABEL = { todos:'Todos', subs:'Subs', vip:'VIP', mods:'Mods', broadcaster:'Streamer' };
-
-    function renderLista(comandos) {
-      var list = document.getElementById('command-list');
-      if (!comandos || comandos.length === 0) {
-        list.innerHTML = '<p class="no-commands">Este canal ainda nao configurou comandos.<br>Volte em breve!</p>';
-        return;
-      }
-      list.innerHTML = comandos.map(function(c) {
-        return '<div class="command-item"><span class="cmd-name">' + (c.emoji||'') + ' ' + c.cmd + '</span><span class="cmd-user">' + (c.desc || PERM_LABEL[c.perm] || '') + '</span></div>';
-      }).join('');
-    }
-
-    function carregar(channelId) {
-      fetch(BACKEND + '/api/extension/' + channelId + '/commands')
-        .then(function(r){ return r.json(); })
-        .then(function(data) {
-          if (data.ok) {
-            var h = document.querySelector('.panel-header h2');
-            if (h && data.canal) h.textContent = 'Comandos - ' + data.canal;
-            renderLista(data.commands);
-          } else { renderLista([]); }
-        })
-        .catch(function() {
-          document.getElementById('command-list').innerHTML = '<p class="no-commands">Nao foi possivel carregar os comandos.</p>';
-        });
-    }
-
-    if (window.Twitch && window.Twitch.ext) {
-      window.Twitch.ext.onAuthorized(function(auth) { carregar(auth.channelId); });
-    } else {
-      carregar('131509204');
-    }
-  </script>
+  <script src="js/twitch-ext.js"></script>
+  <script src="js/alerts.js"></script>
+  <script src="js/polls.js"></script>
+  <script src="js/panel.js"></script>
 </body>
 </html>
