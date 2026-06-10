@@ -55,7 +55,7 @@ function carregarRecompensas(chId) {
         container.innerHTML = `
           <p style="font-size:11px;color:var(--text-muted)">
             Nenhuma recompensa de Channel Points encontrada.<br>
-            Crie recompensas no painel da Twitch e elas aparecerão aqui.
+            Crie recompensas no painel do criador e elas aparecerão aqui.
           </p>`;
         return;
       }
